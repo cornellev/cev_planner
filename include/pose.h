@@ -10,20 +10,23 @@ namespace cev_planner {
      *
      */
     struct Pose {
+        Pose(double x = 0, double y = 0, double theta = 0)
+            : x(x), y(y), theta(restrict_angle(theta)) {}
+
         Pose operator+(const Pose& other) const {
-            return Pose{x + other.x, y + other.y, restrict_angle(theta + other.theta)};
+            return Pose(x + other.x, y + other.y, theta + other.theta);
         }
 
         Pose operator-(const Pose& other) const {
-            return Pose{x - other.x, y - other.y, restrict_angle(theta - other.theta)};
+            return Pose(x - other.x, y - other.y, theta - other.theta);
         }
 
         Pose operator*(double scalar) const {
-            return Pose{x * scalar, y * scalar, restrict_angle(theta * scalar)};
+            return Pose(x * scalar, y * scalar, theta * scalar);
         }
 
         Pose operator/(double scalar) const {
-            return Pose{x / scalar, y / scalar, restrict_angle(theta / scalar)};
+            return Pose(x / scalar, y / scalar, theta / scalar);
         }
 
         float distance_to(const Pose& other) const {
@@ -43,5 +46,4 @@ namespace cev_planner {
         // Orientation in radians
         double theta;
     };
-
 }
