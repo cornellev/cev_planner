@@ -22,9 +22,6 @@ namespace cev_planner {
      *
      */
     struct Trajectory {
-        // Start time of the trajectory in nanoseconds
-        long start_time;
-
         // Waypoints in the trajectory
         std::vector<Waypoint> waypoints;
     };

@@ -12,7 +12,7 @@ namespace cev_planner {
      */
     struct Grid {
         // Probability of occupancy at each cell. X axis is the outer index, Y axis is the inner
-        // index
+        // index. Probability is in the range [0, 1] with -1 representing unknown
         std::vector<std::vector<float>> data;
 
         // Origin of the grid in meters
