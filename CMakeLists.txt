@@ -8,4 +8,5 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Compile the library (static or shared)
 add_library(cev_planner STATIC
+    src/global_planner/rrt.cpp
 )
