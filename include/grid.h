@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <eigen3/Eigen/Dense>
 
 #include "pose.h"
 
@@ -12,8 +13,8 @@ namespace cev_planner {
      */
     struct Grid {
         // Probability of occupancy at each cell. X axis is the outer index, Y axis is the inner
-        // index. Probability is in the range [0, 1] with -1 representing unknown
-        std::vector<std::vector<float>> data;
+        // index. Probability is in the range [0.0, 1.0] with -1.0 representing unknown
+        Eigen::MatrixXd data;
 
         // Origin of the grid in meters
         Pose origin;
