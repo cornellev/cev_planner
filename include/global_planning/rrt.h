@@ -29,6 +29,6 @@ namespace cev_planner::global_planner {
          * @param target Target pose of the robot
          * @return Trajectory Path from the start pose to the target pose
          */
-        Trajectory plan_path(Grid grid, Pose start, Pose target);
+        Trajectory plan_path(Grid grid, Pose start, Pose target) override;
     };
 }  // namespace cev_planner::global_planner
