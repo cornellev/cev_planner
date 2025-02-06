@@ -8,6 +8,7 @@
 #include "cost_map/cost_map.h"
 
 #include <iostream>
+#include <chrono>
 
 using namespace cev_planner::cost_map;
 
@@ -71,16 +72,18 @@ namespace cev_planner::local_planner {
                     this->new_costmap = this->cost_map_generator->generate_cost_map(grid);
                 });
             } else {
+                auto start_time = std::chrono::high_resolution_clock::now();
                 this->new_costmap = this->cost_map_generator->generate_cost_map(grid);
-                costmap_initialized = true;
+                auto end_time = std::chrono::high_resolution_clock::now();
 
-                std::cout << "HERE" << std::endl;
+                std::chrono::duration<double> elapsed = end_time - start_time;
+                std::cout << "Costmap generation took " << elapsed.count() << " seconds"
+                          << std::endl;
+                costmap_initialized = true;
             }
 
             // Update costmap in case new one calculated
             this->costmap = std::move(this->new_costmap);
-
-            std::cout << "Costmap calculated" << std::endl;
 
             return this->calculate_trajectory();
         }

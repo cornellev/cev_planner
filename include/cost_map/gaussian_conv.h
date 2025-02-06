@@ -28,18 +28,17 @@ namespace cev_planner::cost_map {
     private:
         Eigen::VectorXf kernel;
         int search_radius;
-        float sigma;
+
+        Eigen::VectorXf gen_kernel(int search_radius, float sigma);
 
     public:
         /**
          * @brief Construct a new GaussianConvolution cost map generator
          */
         GaussianConvolution(int search_radius, float sigma): CostMapGenerator() {
-            std::cout << "MY SEARCH RADIUS IS: " << search_radius << std::endl;
+            this->search_radius = search_radius;
             kernel = gen_kernel(search_radius, sigma);
         }
-
-        Eigen::VectorXf gen_kernel(int search_radius, float sigma);
 
         std::unique_ptr<CostMap> generate_cost_map(Grid grid) override;
     };

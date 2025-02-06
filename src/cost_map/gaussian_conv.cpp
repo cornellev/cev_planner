@@ -34,36 +34,17 @@ namespace cev_planner::cost_map {
     }
 
     std::unique_ptr<CostMap> GaussianConvolution::generate_cost_map(Grid grid) {
-        std::cout << grid.data.cols() << std::endl;
-
-        std::cout << "My search radius is: " << search_radius;
-
         // Convolution along rows
         Eigen::MatrixXf row_conv = Eigen::MatrixXf::Zero(grid.data.rows(), grid.data.cols());
 
-        std::cout << "Made it here." << std::endl;
-
-        std::cout << grid.data(0, 0) << std::endl;
-
-        std::cout << kernel.rows() << std::endl;
-        std::cout << kernel.cols() << std::endl;
-        std::cout << kernel(1) << std::endl;
-
         for (int i = 0; i < grid.data.rows(); ++i) {
-            std::cout << "here." << std::endl;
             for (int j = 0; j < grid.data.cols(); ++j) {
-                std::cout << "here.." << std::endl;
                 float sum = 0.0f;
                 for (int k = -search_radius; k <= search_radius; ++k) {
                     int idx = j + k;
                     if (idx >= 0 && idx < grid.data.cols()) {
-                        std::cout << "Getting grid cell: " << i << ", " << idx << std::endl;
                         float tmp = grid.data(i, idx);
-                        std::cout << "this done." << std::endl;
-                        std::cout << k << std::endl;
-                        std::cout << search_radius << std::endl;
                         float tmp2 = kernel(k + search_radius);
-                        std::cout << "this done too." << std::endl;
 
                         sum += grid.data(i, idx) * kernel(k + search_radius);
                     }
@@ -86,8 +67,6 @@ namespace cev_planner::cost_map {
                 cost_map(i, j) = sum;
             }
         }
-
-        std::cout << "Cost Map:\n" << cost_map << std::endl;
 
         Grid cost_map_ = Grid();
         cost_map_.data = cost_map;
