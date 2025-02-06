@@ -1,5 +1,9 @@
 #include "cost_map/gaussian_conv.h"
 
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/highgui.hpp>
+
 #include <iostream>
 
 namespace cev_planner::cost_map {
@@ -31,6 +35,57 @@ namespace cev_planner::cost_map {
         // Normalize the kernel to ensure the sum is 1
         kernel /= sum;
         return kernel;
+    }
+
+    void visualizeCostmap(const std::vector<std::vector<double>>& costmap,
+        const Eigen::MatrixXf& grid,
+        const std::string& filename =
+            "/home/sloth/Programming/CEV/rc-local-planning-workspace/costmap.png") {
+        int rows = costmap.size();
+        int cols = costmap[0].size();
+
+        // Flatten the 2D vector into a 1D array for cv::Mat
+        std::vector<uchar> flatCostmap;
+        for (int i = 0; i < rows; ++i) {
+            for (int j = 0; j < cols; ++j) {
+                // Normalize cost values to range [0, 255] and add them to flatCostmap
+                flatCostmap.push_back(static_cast<uchar>(costmap[i][j]
+                                                         * 255.0));  // Assuming 0 <= cost <= 1
+                // cout << costmap[i][j] << endl;
+            }
+        }
+
+        // Create a cv::Mat from the flattened 1D array
+        cv::Mat image(rows, cols, CV_8UC1, flatCostmap.data());  // 8-bit single-channel image
+
+        // Apply a colormap (e.g., 'JET', 'HOT', 'PLASMA')
+        cv::Mat coloredImage;
+        cv::applyColorMap(image, coloredImage, cv::COLORMAP_HOT);
+
+        // Overlay the original grid on the colored image
+        for (int i = 0; i < grid.rows(); ++i) {
+            for (int j = 0; j < grid.cols(); ++j) {
+                if (grid(i, j) > 0) {
+                    // cv::circle(coloredImage, cv::Point(j, i), 1, cv::Scalar(200, 200, 200), -1);
+                    cv::rectangle(coloredImage, cv::Point(j, i), cv::Point(j + 1, i + 1),
+                        cv::Scalar(200, 200, 200), -1);
+                }
+            }
+        }
+
+        // Invert the image (optional)
+        // cv::bitwise_not(coloredImage, coloredImage);
+
+        // Make the red stronger
+        // cv::Mat channels[3];
+        // cv::split(coloredImage, channels);
+        // channels[2] = channels[2] * 2.0;
+        // cv::merge(channels, 3, coloredImage);
+
+        // Save the colored image to a file
+        cv::imwrite(filename, coloredImage);
+
+        std::cout << "Costmap image saved as " << filename << std::endl;
     }
 
     std::unique_ptr<CostMap> GaussianConvolution::generate_cost_map(Grid grid) {
@@ -72,6 +127,18 @@ namespace cev_planner::cost_map {
         cost_map_.data = cost_map;
         cost_map_.origin = grid.origin;
         cost_map_.resolution = grid.resolution;
+
+        // Convert the Eigen matrix to a 2D vector for visualization
+        std::vector<std::vector<double>> cost_map_vec(cost_map.rows(),
+            std::vector<double>(cost_map.cols()));
+
+        for (int i = 0; i < cost_map.rows(); ++i) {
+            for (int j = 0; j < cost_map.cols(); ++j) {
+                cost_map_vec[i][j] = cost_map(i, j);
+            }
+        }
+
+        visualizeCostmap(cost_map_vec, grid.data);
 
         return std::make_unique<GaussianCostMap>(cost_map_);
     }

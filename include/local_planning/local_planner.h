@@ -79,7 +79,7 @@ namespace cev_planner::local_planner {
                 std::chrono::duration<double> elapsed = end_time - start_time;
                 std::cout << "Costmap generation took " << elapsed.count() << " seconds"
                           << std::endl;
-                costmap_initialized = true;
+                // costmap_initialized = true;
             }
 
             // Update costmap in case new one calculated
