@@ -129,7 +129,11 @@ namespace cev_planner::cost_map {
         for (int i = 0; i < costs.rows(); ++i) {
             for (int j = 0; j < costs.cols(); ++j) {
                 if (costs(i, j) > 0.0) {
-                    cost_img.at<cv::Vec3b>(i, j) = cv::Vec3b(0, 0, costs(i, j) * 255);
+                    float mulb = costs(i, j) * 255;
+                    float mulg = costs(i, j) * 0;
+                    float mulr = costs(i, j) * 255;
+                    // cost_img.at<cv::Vec3b>(i, j) = cv::Vec3b(mulb, mulg, mulr);
+                    cost_img.at<cv::Vec3b>(i, j) = cv::Vec3b(mulb, mulg, mulr);
                 }
             }
         }
