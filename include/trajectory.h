@@ -10,8 +10,8 @@ namespace cev_planner {
      *
      */
     struct Waypoint {
-        // Pose of the waypoint
-        Pose pose;
+        // State of the waypoint
+        State state;
 
         // Target velocity in meters per second
         double velocity;

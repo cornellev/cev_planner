@@ -8,8 +8,7 @@
 namespace cev_planner::global_planner {
 
     /**
-     * @brief GlobalPlanner plans a path through an occupancy grid to a target pose while
-     * avoiding obstacles and obeying constraints
+     * @brief GlobalPlanner plans a `Trajectory` through an occupancy grid
      *
      */
     class GlobalPlanner {
@@ -29,14 +28,14 @@ namespace cev_planner::global_planner {
         }
 
         /**
-         * @brief Plan a path through an occupancy grid to a target pose while avoiding
-         * obstacles and obeying constraints
+         * @brief Plan a `Trajectory` through an occupancy grid from a start to a target `State`
+         * while avoiding obstacles and obeying constraints
          *
          * @param grid Occupancy grid with probability of occupancy at each cell
-         * @param start Starting pose of the robot
-         * @param target Target pose of the robot
-         * @return std::vector<Pose> Path from the start pose to the target pose
+         * @param start Starting `State` of the robot
+         * @param target Target `State` of the robot
+         * @return `Trajectory` from the start pose to the target pose
          */
-        virtual Trajectory plan_path(Grid grid, Pose start, Pose target) = 0;
+        virtual Trajectory plan_path(Grid grid, State start, State target) = 0;
     };
 }  // namespace cev_planner::global_planner

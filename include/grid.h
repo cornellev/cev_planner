@@ -14,7 +14,7 @@ namespace cev_planner {
     struct Grid {
         // Probability of occupancy at each cell. X axis is the outer index, Y axis is the inner
         // index. Probability is in the range [0.0, 1.0] with -1.0 representing unknown
-        Eigen::MatrixXd data;
+        Eigen::MatrixXf data;
 
         // Origin of the grid in meters
         Pose origin;

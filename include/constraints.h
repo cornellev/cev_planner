@@ -18,15 +18,22 @@ namespace cev_planner {
     };
 
     /**
-     * @brief Constraints on the robot's motion
+     * @brief Constraints of the state space. [min, max]
      *
      */
     struct Constraints {
-        // Maximum steering angle in radians
-        double max_steering_angle;
-
-        // Minimum steering angle in radians
-        double min_steering_angle;
+        // X coordinate in meters
+        double x[2];
+        // Y coordinate in meters
+        double y[2];
+        // Steering angle in radians
+        double tau[2];
+        // Velocity in m/s
+        double vel[2];
+        // Acceleration in m/s^2
+        double accel[2];
+        // Change of steering angle in radians
+        double dtau[2];
     };
 
 }  // namespace cev_planner

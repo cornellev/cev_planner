@@ -15,11 +15,12 @@ namespace cev_planner::local_planner {
          *
          * @param dimensions Dimensions of the robot
          * @param constraints Constraints on the robot's motion
+         * @param cost_map_generator Cost map generator
          */
-        MPC(Dimensions dimensions, Constraints constraints)
-            : LocalPlanner(dimensions, constraints) {}
+        MPC(Dimensions dimensions, Constraints constraints,
+            std::shared_ptr<CostMapGenerator> cost_map_generator)
+            : LocalPlanner(dimensions, constraints, cost_map_generator) {}
 
-        Grid calculate_costmap(Grid grid, Pose start, Pose target, Trajectory waypoints) override;
-        Trajectory calculate_trajectory(Pose start, Pose target) override;
+        Trajectory calculate_trajectory();
     };
 }  // namespace cev_planner::local_planner
