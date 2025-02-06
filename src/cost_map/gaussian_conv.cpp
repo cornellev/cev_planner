@@ -37,21 +37,24 @@ namespace cev_planner::cost_map {
         return kernel;
     }
 
-    void visualizeCostmap(const std::vector<std::vector<double>>& costmap,
-        const Eigen::MatrixXf& grid,
+    void visualize_costmap(const std::vector<std::vector<float>>& costmap,
+        const std::vector<std::vector<float>>& grid,
         const std::string& filename =
             "/home/sloth/Programming/CEV/rc-local-planning-workspace/costmap.png") {
         int rows = costmap.size();
         int cols = costmap[0].size();
 
+        // if (rows > cols) {
+        //     cols = rows;
+        // } else {
+        //     rows = cols;
+        // }
+
         // Flatten the 2D vector into a 1D array for cv::Mat
         std::vector<uchar> flatCostmap;
         for (int i = 0; i < rows; ++i) {
             for (int j = 0; j < cols; ++j) {
-                // Normalize cost values to range [0, 255] and add them to flatCostmap
-                flatCostmap.push_back(static_cast<uchar>(costmap[i][j]
-                                                         * 255.0));  // Assuming 0 <= cost <= 1
-                // cout << costmap[i][j] << endl;
+                flatCostmap.push_back(static_cast<uchar>(costmap[i][j] * 255.0));
             }
         }
 
@@ -62,13 +65,13 @@ namespace cev_planner::cost_map {
         cv::Mat coloredImage;
         cv::applyColorMap(image, coloredImage, cv::COLORMAP_HOT);
 
-        // Overlay the original grid on the colored image
-        for (int i = 0; i < grid.rows(); ++i) {
-            for (int j = 0; j < grid.cols(); ++j) {
-                if (grid(i, j) > 0) {
+        // Draw the grid on the image
+        for (int i = 0; i < rows; ++i) {
+            for (int j = 0; j < cols; ++j) {
+                if (grid[i][j] > 0.0) {
                     // cv::circle(coloredImage, cv::Point(j, i), 1, cv::Scalar(200, 200, 200), -1);
-                    cv::rectangle(coloredImage, cv::Point(j, i), cv::Point(j + 1, i + 1),
-                        cv::Scalar(200, 200, 200), -1);
+                    // Don't draw a shape, just fill the pixel
+                    coloredImage.at<cv::Vec3b>(i, j) = cv::Vec3b(200, 200, 200);
                 }
             }
         }
@@ -88,9 +91,71 @@ namespace cev_planner::cost_map {
         std::cout << "Costmap image saved as " << filename << std::endl;
     }
 
+    void visualize_grid(const std::vector<std::vector<float>>& grid,
+        const std::string& filename =
+            "/home/sloth/Programming/CEV/rc-local-planning-workspace/grid.png") {
+        int rows = grid.size();
+        int cols = grid[0].size();
+
+        // Flatten the 2D vector into a 1D array for cv::Mat
+        std::vector<uchar> flatGrid;
+        for (int i = 0; i < rows; ++i) {
+            for (int j = 0; j < cols; ++j) {
+                // Normalize cost values to range [0, 255] and add them to flatCostmap
+                flatGrid.push_back(static_cast<uchar>(grid[i][j]
+                                                      * 255.0));  // Assuming 0 <= cost <= 1
+            }
+        }
+
+        // Create a cv::Mat from the flattened 1D array
+        cv::Mat image(rows, cols, CV_8UC1, flatGrid.data());  // 8-bit single-channel image
+
+        // // Apply a colormap (e.g., 'JET', 'HOT', 'PLASMA')
+        // cv::Mat coloredImage;
+        // cv::applyColorMap(image, coloredImage, cv::COLORMAP_HOT);
+
+        // Save the colored image to a file
+        cv::imwrite(filename, image);
+
+        std::cout << "Grid image saved as " << filename << std::endl;
+    }
+
+    void visualize_eigen(const Eigen::MatrixXf& grid, const Eigen::MatrixXf costs) {
+        std::cout << "GRID SIZE: " << grid.rows() << " x " << grid.cols() << std::endl;
+        std::cout << "COSTS SIZE: " << costs.rows() << " x " << costs.cols() << std::endl;
+
+        cv::Mat cost_img(grid.rows(), grid.cols(), CV_8UC3, cv::Vec3b(0, 0, 0));
+
+        for (int i = 0; i < costs.rows(); ++i) {
+            for (int j = 0; j < costs.cols(); ++j) {
+                if (costs(i, j) > 0.0) {
+                    cost_img.at<cv::Vec3b>(i, j) = cv::Vec3b(0, 0, costs(i, j) * 255);
+                }
+            }
+        }
+
+        cv::Mat grid_img(grid.rows(), grid.cols(), CV_8UC3, cv::Vec3b(0, 0, 0));
+
+        for (int i = 0; i < grid.rows(); ++i) {
+            for (int j = 0; j < grid.cols(); ++j) {
+                if (grid(i, j) > 0.0) {
+                    cost_img.at<cv::Vec3b>(i, j) = cv::Vec3b(255, 255, 255);
+                }
+            }
+        }
+
+        cv::imwrite("/home/sloth/Programming/CEV/rc-local-planning-workspace/costmap.png",
+            cost_img);
+        cv::imwrite("/home/sloth/Programming/CEV/rc-local-planning-workspace/grid.png", grid_img);
+
+        std::cout << "Eigen image saved" << std::endl;
+    }
+
     std::unique_ptr<CostMap> GaussianConvolution::generate_cost_map(Grid grid) {
         // Convolution along rows
         Eigen::MatrixXf row_conv = Eigen::MatrixXf::Zero(grid.data.rows(), grid.data.cols());
+
+        std::cout << "GRID SIZE: " << grid.data.rows() << " x " << grid.data.cols() << std::endl;
 
         for (int i = 0; i < grid.data.rows(); ++i) {
             for (int j = 0; j < grid.data.cols(); ++j) {
@@ -129,8 +194,8 @@ namespace cev_planner::cost_map {
         cost_map_.resolution = grid.resolution;
 
         // Convert the Eigen matrix to a 2D vector for visualization
-        std::vector<std::vector<double>> cost_map_vec(cost_map.rows(),
-            std::vector<double>(cost_map.cols()));
+        std::vector<std::vector<float>> cost_map_vec(cost_map.rows(),
+            std::vector<float>(cost_map.cols()));
 
         for (int i = 0; i < cost_map.rows(); ++i) {
             for (int j = 0; j < cost_map.cols(); ++j) {
@@ -138,9 +203,20 @@ namespace cev_planner::cost_map {
             }
         }
 
-        visualizeCostmap(cost_map_vec, grid.data);
+        // Vis the grid
+        std::vector<std::vector<float>> grid_vec(grid.data.rows(),
+            std::vector<float>(grid.data.cols()));
+
+        for (int i = 0; i < grid.data.rows(); ++i) {
+            for (int j = 0; j < grid.data.cols(); ++j) {
+                grid_vec[i][j] = grid.data(i, j);
+            }
+        }
+
+        // visualize_costmap(cost_map_vec, grid_vec);
+        // visualize_grid(grid_vec);
+        visualize_eigen(grid.data, cost_map);
 
         return std::make_unique<GaussianCostMap>(cost_map_);
     }
-
 }
