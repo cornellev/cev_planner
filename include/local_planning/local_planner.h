@@ -6,6 +6,7 @@
 #include "trajectory.h"
 #include "thread"
 #include "cost_map/cost_map.h"
+#include "vis/vis.h"
 
 #include <iostream>
 #include <chrono>
@@ -68,7 +69,7 @@ namespace cev_planner::local_planner {
 
             if (costmap_initialized) {
                 // Asynchronously calculate the costmap
-                std::thread costmap_thread([this, grid] {
+                std::thread costmap_thread([this, grid, start] {
                     this->new_costmap = this->cost_map_generator->generate_cost_map(grid);
                 });
             } else {
@@ -77,15 +78,19 @@ namespace cev_planner::local_planner {
                 auto end_time = std::chrono::high_resolution_clock::now();
 
                 std::chrono::duration<double> elapsed = end_time - start_time;
-                std::cout << "Costmap generation took " << elapsed.count() << " seconds"
-                          << std::endl;
                 // costmap_initialized = true;
             }
 
             // Update costmap in case new one calculated
             this->costmap = std::move(this->new_costmap);
 
-            return this->calculate_trajectory();
+            Trajectory trajectory = this->calculate_trajectory();
+
+            cev_planner::vis::vis_trajectory(grid, start, trajectory, target);
+
+            std::cout << "done" << std::endl;
+
+            return trajectory;
         }
 
         virtual Trajectory calculate_trajectory() = 0;

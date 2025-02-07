@@ -20,6 +20,7 @@ add_library(cev_planner STATIC
     src/global_planner/rrt.cpp
     src/local_planner/mpc.cpp
     src/cost_map/gaussian_conv.cpp
+    src/vis/vis.cpp
 )
 
 target_link_libraries(cev_planner Eigen3::Eigen ${NLOPT_LIBRARIES} ${OpenCV_LIBS})

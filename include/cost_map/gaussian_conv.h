@@ -7,6 +7,7 @@
 #include <iostream>
 
 #include "cost_map.h"
+#include "vis/vis.h"
 
 namespace cev_planner::cost_map {
 
