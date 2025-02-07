@@ -12,9 +12,6 @@ namespace cev_planner {
     struct Waypoint {
         // State of the waypoint
         State state;
-
-        // Target velocity in meters per second
-        double velocity;
     };
 
     /**
@@ -23,7 +20,7 @@ namespace cev_planner {
      */
     struct Trajectory {
         // Waypoints in the trajectory
-        std::vector<Waypoint> waypoints;
+        std::vector<State> waypoints;
     };
 
 }  // namespace cev_planner

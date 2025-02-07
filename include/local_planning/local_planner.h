@@ -21,7 +21,7 @@ namespace cev_planner::local_planner {
      *
      */
     class LocalPlanner {
-    private:
+    protected:
         Dimensions dimensions;
         Constraints constraints;
 
@@ -87,8 +87,6 @@ namespace cev_planner::local_planner {
             Trajectory trajectory = this->calculate_trajectory();
 
             cev_planner::vis::vis_trajectory(grid, start, trajectory, target);
-
-            std::cout << "done" << std::endl;
 
             return trajectory;
         }

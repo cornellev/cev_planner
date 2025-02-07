@@ -38,9 +38,9 @@ namespace cev_planner::vis {
             }
         }
 
-        for (Waypoint waypoint: trajectory.waypoints) {
-            int x = (waypoint.state.pose.x - grid.origin.x) / grid.resolution;
-            int y = (waypoint.state.pose.y - grid.origin.y) / grid.resolution;
+        for (State waypoint: trajectory.waypoints) {
+            int x = (waypoint.pose.x - grid.origin.x) / grid.resolution;
+            int y = (waypoint.pose.y - grid.origin.y) / grid.resolution;
 
             img.at<cv::Vec3b>(x, y) = cv::Vec3b(0, 255, 0);
         }

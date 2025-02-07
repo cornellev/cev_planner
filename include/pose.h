@@ -1,7 +1,9 @@
 #pragma once
 
-#include "angle.h"
+#include "util.h"
 #include "constraints.h"
+
+#include <iostream>
 
 namespace cev_planner {
     /**
@@ -57,14 +59,14 @@ namespace cev_planner {
         // Velocity in m/s
         double vel;
 
-        State update(Input& input, double& dt, Dimensions& dimensions, Constraints& constraints) {
+        State update(Input input, double dt, Dimensions& dimensions, Constraints& constraints) {
             State _state = *this;
 
-            double accel = std::clamp(input.vel - vel, constraints.vel[0], constraints.vel[1]);
+            double accel = std::clamp(input.vel - vel, constraints.accel[0], constraints.accel[1]);
             double dtau = std::clamp(input.tau - tau, constraints.dtau[0], constraints.dtau[1]);
 
-            _state.vel = std::clamp(vel + accel, constraints.vel[0], constraints.vel[1]);
-            _state.tau = std::clamp(tau + dtau, constraints.tau[0], constraints.tau[1]);
+            _state.vel = std::clamp(vel + accel * dt, constraints.vel[0], constraints.vel[1]);
+            _state.tau = std::clamp(tau + dtau * dt, constraints.tau[0], constraints.tau[1]);
 
             double avg_vel = (vel + _state.vel) / 2;
 
@@ -79,6 +81,12 @@ namespace cev_planner {
             _state.pose.y = pose.y + avg_vel * sin(avg_theta) * dt;
 
             return _state;
+        }
+
+        std::string to_string() {
+            return "State: (" + std::to_string(pose.x) + ", " + std::to_string(pose.y) + ", "
+                   + std::to_string(pose.theta) + ", " + std::to_string(tau) + ", "
+                   + std::to_string(vel) + ")";
         }
     };
 }
