@@ -14,7 +14,7 @@ namespace cev_planner::local_planner {
     class MPC : public LocalPlanner {
     private:
         int num_states = 15;
-        float dt = .1;
+        float dt = .3;
         nlopt::opt opt;
 
         double path_obs_cost(std::vector<State>& path);
