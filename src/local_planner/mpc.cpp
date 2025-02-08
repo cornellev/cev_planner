@@ -20,8 +20,14 @@ namespace cev_planner::local_planner {
                 cost += .3 * path[i].pose.distance_to(waypoints.waypoints[j].pose);
             }
 
-            cost += 2 * path[i].pose.distance_to(target.pose);
+            cost += .5 * path[i].pose.distance_to(target.pose);
         }
+
+        // Additional cost for last node distance to goal
+        cost += 4 * path[path.size() - 1].pose.distance_to(target.pose);
+
+        // Ensure that final velocity low
+        // cost += 1 * path[path.size() - 1].vel;
 
         return cost;
     }
