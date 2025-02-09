@@ -24,7 +24,7 @@ namespace cev_planner::local_planner {
         }
 
         // Additional cost for last node distance to goal
-        cost += 4 * path[path.size() - 1].pose.distance_to(target.pose);
+        cost += 1 * path[path.size() - 1].pose.distance_to(target.pose);
 
         // Ensure that final velocity low
         // cost += 1 * path[path.size() - 1].vel;
@@ -49,7 +49,11 @@ namespace cev_planner::local_planner {
         MPC* mpc = (MPC*)data;
 
         std::vector<State> path = mpc->decompose(mpc->start, x);
-        double cost = 15 * mpc->path_obs_cost(path) + mpc->path_waypoints_cost(path);
+        double cost = mpc->path_obs_cost(path) + mpc->path_waypoints_cost(path);
+
+        // std::cout << "Path Obs Cost: " << mpc->path_obs_cost(path) << std::endl;
+        // std::cout << "Path Waypoints Cost: " << mpc->path_waypoints_cost(path) << std::endl;
+        // std::cout << "_____________________" << std::endl;
 
         return cost;
     }
