@@ -21,6 +21,7 @@ namespace cev_planner {
     struct Trajectory {
         // Waypoints in the trajectory
         std::vector<State> waypoints;
+        float cost;
     };
 
 }  // namespace cev_planner

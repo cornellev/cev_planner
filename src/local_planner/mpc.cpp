@@ -24,7 +24,7 @@ namespace cev_planner::local_planner {
         }
 
         // Additional cost for last node distance to goal
-        cost += 1 * path[path.size() - 1].pose.distance_to(target.pose);
+        cost += 2 * path[path.size() - 1].pose.distance_to(target.pose);
 
         // Ensure that final velocity low
         // cost += 1 * path[path.size() - 1].vel;
@@ -44,18 +44,16 @@ namespace cev_planner::local_planner {
         return path;
     }
 
+    double MPC::costs(const std::vector<double>& x) {
+        std::vector<State> path = this->decompose(*this->temp_start, x);
+        return 50 * path_obs_cost(path) + path_waypoints_cost(path);
+    }
+
     double MPC::objective_function(const std::vector<double>& x, std::vector<double>& grad,
         void* data) {
         MPC* mpc = (MPC*)data;
 
-        std::vector<State> path = mpc->decompose(mpc->start, x);
-        double cost = mpc->path_obs_cost(path) + mpc->path_waypoints_cost(path);
-
-        // std::cout << "Path Obs Cost: " << mpc->path_obs_cost(path) << std::endl;
-        // std::cout << "Path Waypoints Cost: " << mpc->path_waypoints_cost(path) << std::endl;
-        // std::cout << "_____________________" << std::endl;
-
-        return cost;
+        return mpc->costs(x);
     }
 
     void MPC::optimize_iter(nlopt::opt& opt, std::vector<double>& x) {
@@ -64,22 +62,55 @@ namespace cev_planner::local_planner {
     }
 
     Trajectory MPC::calculate_trajectory() {
+        std::vector<double> path = {};
         std::vector<double> x = {};
 
+        temp_start = std::make_unique<State>(start);
+
         // Create an initial guess straight forward from last point
-        for (int i = 0; i < num_states; i++) {
+        for (int i = 0; i < num_inputs; i++) {
             // Push 0 for steering angle
             x.push_back(0);
             // Push back current state velocity
             x.push_back(start.vel);
         }
 
-        optimize_iter(opt, x);
+        for (int i = 0; i < horizon_extension_iters; i++) {
+            optimize_iter(opt, x);
 
-        std::vector<State> path = decompose(start, x);
+            // Append the first `keep_per_extension` inputs to path
+            for (int j = 0; j < keep_per_extension; j++) {
+                path.push_back(x[j * 2]);
+                path.push_back(x[j * 2 + 1]);
+            }
+
+            // Shift all inputs left by `keep_per_extension` input sets
+            x.erase(x.begin(), x.begin() + keep_per_extension * 2);
+
+            // Forward simulate the start_state with the last input
+            std::vector<State> fin_path = decompose(*temp_start, x);
+            this->temp_start = std::make_unique<State>(fin_path[fin_path.size() - 1]);
+            float last_vel = temp_start->vel;
+
+            // Add `keep_per_extension` new input sets to the end
+            for (int j = 0; j < keep_per_extension; j++) {
+                x.push_back(0);
+                // Push back vel of the last input
+                x.push_back(last_vel);
+            }
+        }
+
+        // Extend the final path by `additionally_extend` more steps
+        for (int i = 0; i < additionally_extend; i++) {
+            path.push_back(x[i * 2]);
+            path.push_back(x[i * 2 + 1]);
+        }
+
+        std::vector<State> fin_path = decompose(start, path);
 
         Trajectory traj;
-        traj.waypoints = path;
+        traj.waypoints = fin_path;
+        traj.cost = path_obs_cost(fin_path) + path_waypoints_cost(fin_path);
 
         return traj;
     }
