@@ -4,6 +4,7 @@
 #include "kd_tree.h"
 #include "rrt_regions.h"
 #include <random>
+#include <chrono>
 
 #include <unordered_set>
 using std::unordered_set;
@@ -41,6 +42,7 @@ namespace cev_planner::global_planner {
          */
         Trajectory plan_path(Grid grid, State start, State target) override {
             resolution = grid.resolution;
+            origin = grid.origin;
             goalFlag = false;
             mapw = grid.data.rows();
             maph = grid.data.cols();
@@ -48,8 +50,8 @@ namespace cev_planner::global_planner {
             goal_nodes = {{0, {max(min((int)round((target.pose.x - grid.origin.x) / resolution), mapw - 1), 0), max(min((int)round((target.pose.y - grid.origin.y) / resolution), maph-1), 0)}}};
             this->start = nodes[0];
             this->goal = goal_nodes[0];
-            startCoordPose = start.pose;
-            goalCoordPose = target.pose;
+            startCoordPose = this->start.as_is_pose();
+            goalCoordPose = this->goal.as_is_pose();
             iter = 0;
             num_not_in_region = 0;
             num_max_in_region = 2000;
@@ -66,12 +68,11 @@ namespace cev_planner::global_planner {
             path = vector<int>();
             pathCoords = vector<Coordinate>();
             from_goal = false;
-            
             cache_obstacle_grid(grid);
             double distToGoal = start.pose.distance_to(target.pose);
             bias();
             int iteration = 0;
-            // ros::Time start_time = ros::Time::now();
+            auto start_time = std::chrono::steady_clock::now();
             while (true) {
                 double in_region = num_in_region();
                 if (iteration % 500 == 0 and goalFlag and 
@@ -84,12 +85,13 @@ namespace cev_planner::global_planner {
                     updateKDTree();
 
                 if (iteration % 1000 == 0) {
-                    // if time elapsed > 5 seconds, break
-                    // if (ros::Time::now() - start_time > ros::Duration(5))
-                    //     break;
+                    // if time elapsed > 2 seconds, break
+                    if (std::chrono::steady_clock::now() - start_time > std::chrono::seconds(2))
+                        break;
 
-                    if (goalFlag and in_region / bestCost < 2)
+                    if (goalFlag and in_region / bestCost < 2) {
                         pruneTrees();
+                    }
                 }
                 iteration++;
             }
@@ -98,6 +100,7 @@ namespace cev_planner::global_planner {
             sampling_region = nullptr;
             ellipse = nullptr;
             Trajectory traj = getPathCoords(true);
+            if (traj.waypoints.size() == 0) return traj;
             if (traj.waypoints[0].pose.x != start.pose.x or traj.waypoints[0].pose.y != start.pose.y) {
                 std::reverse(traj.waypoints.begin(), traj.waypoints.end());
             }
@@ -165,7 +168,7 @@ namespace cev_planner::global_planner {
     Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic> obstacle_grid;
 
     void cache_obstacle_grid(Grid& grid) {
-        dilate_grid(grid, start, goal, create_circular_structure(3.0), 5.0, 0.7f);
+        dilate_grid(grid, start, goal, create_circular_structure(1.0), 5.0, 0.7f);
     }
 
     void dilate_grid(

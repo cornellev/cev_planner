@@ -10,13 +10,13 @@ int main() {
     sampleGrid.origin.x = 0.0;
     sampleGrid.origin.y = 0.0;
     sampleGrid.data = Eigen::MatrixXf::Zero(500, 500);
+    int x, y;
     for (int i = 0; i < 200; ++i) {
-        int x, y;
         do {
           x = rand() % 500;
           y = rand() % 500;
         } while ((x < 5 && y < 5) || (x > 494 && y > 494));
-        sampleGrid.data(x, y) = 1.0;
+        sampleGrid.data(x, y) = -1.0;
     }
     RRT rrt = RRT{{1.0, 1.0, 1.0}, {1.0, 1.0, 1.0, 1.0, 1.0}};
 
@@ -41,7 +41,7 @@ int main() {
     Trajectory res;
     for (int i = 0; i < 1; i++) {
         std::cout << i << std::endl;
-        res = rrt.plan_path(sampleGrid, {0.0, 0.0}, {490.0, 490.0});
+        res = rrt.plan_path(sampleGrid, {0.0, 0.0}, {490.0,490.0});
     }
 
     // // Print the result

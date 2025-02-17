@@ -104,7 +104,7 @@ namespace cev_planner::global_planner {
             centerY = (focus1.y + focus2.y) / 2;
             a = majorAxisLength / 2;
             c = focus2.distance_to(focus1) / 2;
-            b = sqrt(a*a - c*c);
+            b = sqrt(max(a*a - c*c, 0.01));
             rotation = atan2(focus2.y - focus1.y, focus2.x - focus1.x);
         };
         

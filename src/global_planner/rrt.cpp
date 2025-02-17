@@ -38,7 +38,6 @@ namespace cev_planner::global_planner {
             q.push({start_i, start_j});
             visited(start_i, start_j) = true;
             distances(start_i, start_j) = 0;
-            
             while (!q.empty()) {
                 auto [i, j] = q.front();
                 q.pop();
@@ -67,7 +66,7 @@ namespace cev_planner::global_planner {
                 }
             }
         }
-        
+
         for (int i = 0; i < rows; ++i) {
             for (int j = 0; j < cols; ++j) {
                 if (grid.data(i, j) < 0 || grid.data(i, j) >= occupation_threshold) {
@@ -84,7 +83,7 @@ namespace cev_planner::global_planner {
                 }
             }
         }
-        
+
         this->obstacle_grid = result;
     }
 
@@ -143,7 +142,6 @@ namespace cev_planner::global_planner {
         Pose pointPose = point.as_is_pose();
 
         bool foundGoal = bias;
-
         vector<int> neighbors;
         for (pair<int, Pose>& pr : kdTree.get_knn(pointPose, min(10, max(5, (int)(nodes.size() / 10))))) {
             Coordinate c = {(int)round(pr.second.x), (int)round(pr.second.y)};
@@ -159,7 +157,6 @@ namespace cev_planner::global_planner {
         double dist = nodes.at(bestNeighbor).distance_to(point);
         if (node == get_cur_index(from_goal))
             nodes.at(node).set_cost(dist + nodes.at(nodes.at(node).parent).cost);
-
         for (int neighbor : neighbors) {
             if (neighbor == bestNeighbor) continue;
             double neighborCost = get_cost(node, neighbor);
@@ -179,7 +176,6 @@ namespace cev_planner::global_planner {
                 }
             }
         }
-
         int cur_this = node;
         if (!foundGoal) {
             auto [nearest_other,  nearest_other_pose] = other_kdTree.get_nearest(pointPose);
@@ -219,7 +215,6 @@ namespace cev_planner::global_planner {
             else
                 sampling_region->shorten_radius(calculate_k()); 
         } 
-
         if (!foundGoal && !from_goal && point.distance_to(target) <= 50) {
             this->bias();
         }
@@ -263,8 +258,6 @@ namespace cev_planner::global_planner {
         while (true) {
             bool sampling = (rand.Uniform() < 0.87);
             if (goalFlag) {
-                path_to_goal();
-                Trajectory traj = getPathCoords();
                 Pose p = sampling ? sampling_region->generate_random_point() : ellipse->generate_random_point();
                 res.x = p.x;
                 res.y = p.y;

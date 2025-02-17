@@ -18,6 +18,7 @@ include_directories(
 # Compile the library (static or shared)
 add_library(cev_planner STATIC
     src/global_planner/rrt.cpp
+    src/global_planner/rrt_utils.cpp
     src/local_planner/mpc.cpp
     src/cost_map/gaussian_conv.cpp
     src/vis/vis.cpp
