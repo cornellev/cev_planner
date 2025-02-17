@@ -19,7 +19,7 @@ namespace cev_planner::vis {
             }
         }
 
-        cv::imwrite("/home/sloth/Programming/CEV/rc-local-planning-workspace/costmap.png", img);
+        cv::imwrite("./costmap.png", img);
     }
 
     void vis_trajectory(Grid grid, State start, Trajectory trajectory, State target) {
@@ -50,6 +50,6 @@ namespace cev_planner::vis {
         y = (target.pose.y - grid.origin.y) / grid.resolution;
         img.at<cv::Vec3b>(x, y) = cv::Vec3b(255, 0, 0);
 
-        cv::imwrite("/home/sloth/Programming/CEV/rc-local-planning-workspace/trajectory.png", img);
+        cv::imwrite("./trajectory.png", img);
     }
 }

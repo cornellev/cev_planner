@@ -84,7 +84,15 @@ namespace cev_planner::local_planner {
             // Update costmap in case new one calculated
             this->costmap = std::move(this->new_costmap);
 
+            auto start_time = std::chrono::high_resolution_clock::now();
+
             Trajectory trajectory = this->calculate_trajectory();
+
+            std::cout << "Trajectory calculated in: "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(
+                             std::chrono::high_resolution_clock::now() - start_time)
+                             .count()
+                      << "ms" << std::endl;
 
             cev_planner::vis::vis_trajectory(grid, start, trajectory, target);
 
