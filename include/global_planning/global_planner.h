@@ -4,6 +4,7 @@
 #include "constraints.h"
 #include "grid.h"
 #include "trajectory.h"
+#include <optional>
 
 namespace cev_planner::global_planner {
 
@@ -36,6 +37,6 @@ namespace cev_planner::global_planner {
          * @param target Target `State` of the robot
          * @return `Trajectory` from the start pose to the target pose
          */
-        virtual Trajectory plan_path(Grid grid, State start, State target) = 0;
+        virtual std::optional<Trajectory> plan_path(Grid grid, State start, State target) = 0;
     };
 }  // namespace cev_planner::global_planner
