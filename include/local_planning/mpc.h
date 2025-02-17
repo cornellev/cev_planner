@@ -24,7 +24,7 @@ namespace cev_planner::local_planner {
         double path_obs_cost(std::vector<State>& path);
         double path_waypoints_cost(std::vector<State>& path);
         double costs(const std::vector<double>& x);
-        std::vector<State> decompose(State start_state, std::vector<double> u);
+        std::vector<State> decompose(State start_state, std::vector<double> u, double dt);
         static double objective_function(const std::vector<double>& x, std::vector<double>& grad,
             void* data);
         void optimize_iter(nlopt::opt& opt, std::vector<double>& x);
@@ -40,7 +40,7 @@ namespace cev_planner::local_planner {
         MPC(Dimensions dimensions, Constraints constraints,
             std::shared_ptr<CostMapGenerator> cost_map_generator)
             : LocalPlanner(dimensions, constraints, cost_map_generator) {
-            opt = nlopt::opt(nlopt::LN_BOBYQA, num_inputs * 2);
+            opt = nlopt::opt(nlopt::LN_BOBYQA, 1 + (num_inputs * 2));
             opt.set_min_objective(objective_function, this);
             opt.set_xtol_rel(1e-4);
             // TODO: Experiment with randomness settings, initial step based on angle?
