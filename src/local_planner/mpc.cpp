@@ -115,4 +115,48 @@ namespace cev_planner::local_planner {
         return traj;
     }
 
+    // Trajectory MPC::calculate_trajectory() {
+    //     std::vector<std::vector<double>> paths;
+
+    //     float start_angle = -.2;
+    //     float angle_step = .2;
+
+    //     for (int i = 0; i < 2; i++) {
+    //         std::vector<double> path;
+    //         for (int j = 0; j < num_inputs; j++) {
+    //             path.push_back(start_angle + j * angle_step);
+    //             path.push_back(.2);
+    //         }
+    //         paths.push_back(path);
+    //     }
+
+    //     temp_start = std::make_unique<State>(start);
+
+    //     double min_cost = 100000000;
+    //     std::vector<double> x;
+
+    //     // Optimize each path
+    //     for (int i = 0; i < paths.size(); i++) {
+    //         std::vector<double> path = paths[i];
+    //         optimize_iter(opt, path);
+
+    //         double cost = costs(path);
+    //         if (cost < min_cost) {
+    //             min_cost = cost;
+    //             x = path;
+    //         }
+    //     }
+
+    //     // Decompose the optimized trajectory
+    //     std::vector<State> path = decompose(start, x);
+
+    //     Trajectory trajectory;
+    //     trajectory.waypoints = path;
+    //     trajectory.cost = min_cost;
+
+    //     std::cout << "Min Cost: " << min_cost;
+
+    //     return trajectory;
+    // }
+
 }  // namespace cev_planner::local_planner

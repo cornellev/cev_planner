@@ -12,7 +12,7 @@ namespace cev_planner::local_planner {
      *
      */
     class MPC : public LocalPlanner {
-    private:
+    protected:
         int num_inputs = 10;
         float dt = .25;
         int horizon_extension_iters = 1;  // 5 horizon extension steps
