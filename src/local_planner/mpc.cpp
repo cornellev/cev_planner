@@ -38,7 +38,7 @@ namespace cev_planner::local_planner {
         path.push_back(state);
         for (int i = 0; i < u.size(); i += 2) {
             Input input = {u[i], u[i + 1]};
-            state = state.update(input, dt, dimensions, constraints);
+            state = state.update(input, this->dt, dimensions, constraints);
             path.push_back(state);
         }
         return path;
@@ -198,7 +198,7 @@ namespace cev_planner::local_planner {
         Trajectory trajectory;
         trajectory.waypoints = path;
         trajectory.cost = costs(x);
-        trajectory.timestep = x[0];
+        trajectory.timestep = this->dt;
 
         return trajectory;
     }
