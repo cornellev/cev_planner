@@ -14,17 +14,27 @@ namespace cev_planner::local_planner {
 
     double MPC::path_waypoints_cost(std::vector<State>& path) {
         double cost = 0;
+        double waypoint_radius = 1.5;
+        double target_radius = 3;
         for (int i = 1; i < path.size(); i++) {
             // Waypoints
             for (int j = 1; j < waypoints.waypoints.size(); j++) {
-                cost += .3 * j * path[i].pose.distance_to(waypoints.waypoints[j].pose);
+                double dist = path[i].pose.distance_to(waypoints.waypoints[j].pose);
+
+                if (dist < waypoint_radius) {
+                    cost += .5 * dist;
+                }
             }
 
-            cost += .3 * path[i].pose.distance_to(target.pose);
+            double dist = path[i].pose.distance_to(waypoints.waypoints[path.size() - 1].pose);
+
+            if (dist < target_radius) {
+                cost += 1 * dist;
+            }
         }
 
         // Additional cost for last node distance to goal
-        cost += 5 * path[path.size() - 1].pose.distance_to(target.pose);
+        // cost += 5 * path[path.size() - 1].pose.distance_to(target.pose);
 
         // Ensure that final velocity low
         // cost += 1 * path[path.size() - 1].vel;
