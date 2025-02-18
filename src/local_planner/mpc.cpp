@@ -15,29 +15,49 @@ namespace cev_planner::local_planner {
     double MPC::path_waypoints_cost(std::vector<State>& path) {
         double cost = 0;
         double waypoint_radius = 1.5;
+        double within_waypoint = 1.5;
         double target_radius = 3;
-        for (int i = 0; i < path.size(); i++) {
-            // Waypoints
-            for (int j = 1; j < waypoints.waypoints.size(); j++) {
-                double dist = path[i].pose.distance_to(waypoints.waypoints[j].pose);
 
-                if (dist < waypoint_radius) {
-                    cost += .5 * dist;
-                }
-            }
+        double waypoint_weight = 1.5;
 
-            double dist = path[i].pose.distance_to(target.pose);
+        int current_waypoint = 0;
 
-            if (dist < target_radius) {
-                cost += dist;
-            }
+        int size = waypoints.waypoints.size();
+
+        double dist = 0;
+
+        float current_cost = 2;
+
+        for (int j = 0; j < waypoints.waypoints.size(); j++) {
+            cost += current_cost
+                    * path[path.size() - 1].pose.distance_to(waypoints.waypoints[j].pose);
+            current_cost /= 2;
         }
 
-        // Additional cost for last node distance to goal
-        // cost += 5 * path[path.size() - 1].pose.distance_to(target.pose);
+        // for (int i = 1; i < path.size(); i++) {
+        //     for (int j = 0; j < waypoints.waypoints.size(); j++) {
+        //         cost += current_cost * path[i].pose.distance_to(waypoints.waypoints[j].pose);
+        //         current_cost /= 2;
+        //     }
+        //     current_cost = 2;
+        // }
 
-        // Ensure that final velocity low
-        // cost += 1 * path[path.size() - 1].vel;
+        // for (int i = 1; i < path.size(); i++) {
+        //     if (current_waypoint < size) {
+        //         dist = path[i].pose.distance_to(waypoints.waypoints[current_waypoint].pose);
+        //     }
+        //     while (current_waypoint < size && dist < within_waypoint) {
+        //         current_waypoint += 1;
+        //         dist = path[i].pose.distance_to(waypoints.waypoints[current_waypoint].pose);
+        //     }
+
+        //     if (current_waypoint < size) {
+        //         cost += waypoint_weight * dist;
+        //     } else {
+        //         dist = path[i].pose.distance_to(target.pose);
+        //         cost += 2 * waypoint_weight * dist;
+        //     }
+        // }
 
         return cost;
     }

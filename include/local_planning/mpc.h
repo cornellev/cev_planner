@@ -13,8 +13,8 @@ namespace cev_planner::local_planner {
      */
     class MPC : public LocalPlanner {
     protected:
-        int num_inputs = 10;
-        float dt = .25;
+        int num_inputs = 12;
+        float dt = .4;
         int horizon_extension_iters = 1;  // 5 horizon extension steps
         int keep_per_extension = 10;      // keep 3/num_inputs of the best path
         int additionally_extend = 0;      // extend the final path by 5 more steps

@@ -109,11 +109,6 @@ namespace cev_planner::global_planner {
             Trajectory traj = getPathCoords(true);
             if (traj.waypoints.empty()) return std::nullopt;
 
-            if (traj.waypoints[0].pose.x != start.pose.x
-                || traj.waypoints[0].pose.y != start.pose.y) {
-                std::reverse(traj.waypoints.begin(), traj.waypoints.end());
-            }
-
             return std::make_optional(traj);
         }
 
