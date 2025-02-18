@@ -16,7 +16,7 @@ namespace cev_planner::local_planner {
         double cost = 0;
         double waypoint_radius = 1.5;
         double target_radius = 3;
-        for (int i = 1; i < path.size(); i++) {
+        for (int i = 0; i < path.size(); i++) {
             // Waypoints
             for (int j = 1; j < waypoints.waypoints.size(); j++) {
                 double dist = path[i].pose.distance_to(waypoints.waypoints[j].pose);
@@ -26,8 +26,7 @@ namespace cev_planner::local_planner {
                 }
             }
 
-            double dist =
-                path[i].pose.distance_to(waypoints.waypoints[waypoints.waypoints.size() - 1].pose);
+            double dist = path[i].pose.distance_to(target.pose);
 
             if (dist < target_radius) {
                 cost += dist;
