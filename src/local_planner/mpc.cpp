@@ -198,6 +198,7 @@ namespace cev_planner::local_planner {
         Trajectory trajectory;
         trajectory.waypoints = path;
         trajectory.cost = costs(x);
+        trajectory.timestep = x[0];
 
         return trajectory;
     }
