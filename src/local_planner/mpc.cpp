@@ -26,10 +26,11 @@ namespace cev_planner::local_planner {
                 }
             }
 
-            double dist = path[i].pose.distance_to(waypoints.waypoints[path.size() - 1].pose);
+            double dist =
+                path[i].pose.distance_to(waypoints.waypoints[waypoints.waypoints.size() - 1].pose);
 
             if (dist < target_radius) {
-                cost += 1 * dist;
+                cost += dist;
             }
         }
 
