@@ -88,11 +88,11 @@ namespace cev_planner::local_planner {
 
             Trajectory trajectory = this->calculate_trajectory();
 
-            std::cout << "Trajectory calculated in: "
-                      << std::chrono::duration_cast<std::chrono::milliseconds>(
-                             std::chrono::high_resolution_clock::now() - start_time)
-                             .count()
-                      << "ms" << std::endl;
+            // std::cout << "Trajectory calculated in: "
+            //           << std::chrono::duration_cast<std::chrono::milliseconds>(
+            //                  std::chrono::high_resolution_clock::now() - start_time)
+            //                  .count()
+            //           << "ms" << std::endl;
 
             cev_planner::vis::vis_trajectory(grid, start, trajectory, target);
 
