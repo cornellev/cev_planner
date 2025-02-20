@@ -29,9 +29,14 @@ namespace cev_planner::local_planner {
         float current_cost = 2;
 
         for (int j = 0; j < waypoints.waypoints.size(); j++) {
-            cost += current_cost
-                    * path[path.size() - 1].pose.distance_to(waypoints.waypoints[j].pose);
-            current_cost /= 2;
+            dist = path[path.size() - 1].pose.distance_to(waypoints.waypoints[j].pose);
+
+            if (dist < .3) {  // Target anywhere near waypoint
+                dist = .3;
+            }
+
+            cost += current_cost * dist;
+            current_cost /= 2.5;
         }
 
         // for (int i = 1; i < path.size(); i++) {
@@ -83,7 +88,7 @@ namespace cev_planner::local_planner {
         // Show elements from second element of x onward
         std::vector<double> x_ = std::vector<double>(x.begin() + 1, x.end());
 
-        float t = x[0];
+        float t = this->dt;
 
         if (t > .75) {
             t = .75;
@@ -218,16 +223,18 @@ namespace cev_planner::local_planner {
         }
 
         // Optimize
+        nlopt::srand(0);
         optimize_iter(opt, x);
 
         std::vector<double> x_ = std::vector<double>(x.begin() + 1, x.end());
 
         // Decompose the optimized trajectory
-        std::vector<State> path = decompose(start, x_, x[0]);
+        std::vector<State> path = decompose(start, x_, this->dt);
 
         Trajectory trajectory;
         trajectory.waypoints = path;
         trajectory.cost = costs(x);
+        // trajectory.timestep = x[0];
         trajectory.timestep = this->dt;
 
         return trajectory;
