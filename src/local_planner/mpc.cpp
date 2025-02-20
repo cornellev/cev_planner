@@ -31,12 +31,17 @@ namespace cev_planner::local_planner {
         for (int j = 0; j < waypoints.waypoints.size(); j++) {
             dist = path[path.size() - 1].pose.distance_to(waypoints.waypoints[j].pose);
 
-            if (dist < .3) {  // Target anywhere near waypoint
-                dist = .3;
+            if (dist < .1) {  // Target anywhere near waypoint
+                dist = .1;
             }
 
             cost += current_cost * dist;
-            current_cost /= 2.5;
+
+            if (dist < .3) {
+                current_cost /= 3;
+            } else {
+                current_cost = 0;
+            }
         }
 
         // for (int i = 1; i < path.size(); i++) {
@@ -97,7 +102,7 @@ namespace cev_planner::local_planner {
         }
 
         std::vector<State> path = this->decompose(*this->temp_start, x_, t);
-        return 50 * path_obs_cost(path) + path_waypoints_cost(path);
+        return 17 * path_obs_cost(path) + 5 * path_waypoints_cost(path);
     }
 
     double MPC::objective_function(const std::vector<double>& x, std::vector<double>& grad,
@@ -223,7 +228,7 @@ namespace cev_planner::local_planner {
         }
 
         // Optimize
-        nlopt::srand(0);
+        // nlopt::srand(0);
         optimize_iter(opt, x);
 
         std::vector<double> x_ = std::vector<double>(x.begin() + 1, x.end());
