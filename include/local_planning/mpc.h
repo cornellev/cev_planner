@@ -43,7 +43,7 @@ namespace cev_planner::local_planner {
             opt = nlopt::opt(nlopt::LN_BOBYQA, 1 + (num_inputs * 2));
             // opt = nlopt::opt(nlopt::LN_BOBYQA, num_inputs * 2);
             opt.set_min_objective(objective_function, this);
-            opt.set_xtol_rel(1e-6);
+            opt.set_xtol_rel(1e-8);
             // nlopt::srand(0);
             // TODO: Experiment with randomness settings, initial step based on angle?
         }

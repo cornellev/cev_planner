@@ -79,9 +79,10 @@ namespace cev_planner::local_planner {
 
                 std::chrono::duration<double> elapsed = end_time - start_time;
 
-                std::cout << "Cost Map calculated in: "
-                          << std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count()
-                          << "ms" << std::endl;
+                // std::cout << "Cost Map calculated in: "
+                //           <<
+                //           std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count()
+                //           << "ms" << std::endl;
 
                 // costmap_initialized = true;
             }

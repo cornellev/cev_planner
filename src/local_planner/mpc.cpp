@@ -30,9 +30,11 @@ namespace cev_planner::local_planner {
 
         for (int j = 0; j < waypoints.waypoints.size(); j++) {
             dist = path[path.size() - 1].pose.distance_to(waypoints.waypoints[j].pose);
-
-            if (dist < .1) {  // Target anywhere near waypoint
-                dist = .1;
+            if (path.size() > 2) {
+                dist += path[path.size() - 2].pose.distance_to(waypoints.waypoints[j].pose);
+            }
+            if (path.size() > 3) {
+                dist += path[path.size() - 3].pose.distance_to(waypoints.waypoints[j].pose);
             }
 
             cost += current_cost * dist;
@@ -102,7 +104,7 @@ namespace cev_planner::local_planner {
         }
 
         std::vector<State> path = this->decompose(*this->temp_start, x_, t);
-        return 17 * path_obs_cost(path) + 5 * path_waypoints_cost(path);
+        return 5 * path_obs_cost(path) + 5 * path_waypoints_cost(path);
     }
 
     double MPC::objective_function(const std::vector<double>& x, std::vector<double>& grad,
@@ -225,6 +227,17 @@ namespace cev_planner::local_planner {
         for (int i = 0; i < num_inputs; i++) {
             x.push_back(0);
             x.push_back(start.vel);
+        }
+
+        // Define constraints
+        std::vector<double> lb = {.1};
+        std::vector<double> ub = {1};
+
+        for (int i = 0; i < num_inputs; i++) {
+            lb.push_back(constraints.tau[0]);
+            lb.push_back(constraints.vel[0]);
+            ub.push_back(constraints.tau[1]);
+            ub.push_back(constraints.vel[1]);
         }
 
         // Optimize
