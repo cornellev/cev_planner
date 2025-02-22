@@ -234,10 +234,14 @@ namespace cev_planner::local_planner {
         std::vector<double> ub = {1};
 
         for (int i = 0; i < num_inputs; i++) {
-            lb.push_back(constraints.tau[0]);
-            lb.push_back(constraints.vel[0]);
-            ub.push_back(constraints.tau[1]);
-            ub.push_back(constraints.vel[1]);
+            // lb.push_back(constraints.tau[0]);
+            // lb.push_back(constraints.vel[0]);
+            // ub.push_back(constraints.tau[1]);
+            // ub.push_back(constraints.vel[1]);
+            lb.push_back(constraints.dtau[0]);
+            lb.push_back(constraints.accel[0]);
+            ub.push_back(constraints.dtau[1]);
+            ub.push_back(constraints.accel[1]);
         }
 
         // Optimize

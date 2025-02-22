@@ -248,25 +248,26 @@ namespace cev_planner::global_planner {
 
         if (corrected_tf) {
             // add interpolation points so no point to point distance is < 1.5
-            Trajectory interpolated_traj = res;
+            Trajectory interpolated_traj;
 
-            // interpolated_traj.waypoints.push_back(res.waypoints[0]);
+            interpolated_traj.waypoints.push_back(res.waypoints[0]);
 
-            // for (int i = 0; i < res.waypoints.size() - 1; i++) {
-            //     double dist = res.waypoints[i].pose.distance_to(res.waypoints[i + 1].pose);
-            //     if (dist > 1.5) {
-            //         int num_interp_points = std::ceil(dist / 1.5);
+            for (int i = 0; i < res.waypoints.size() - 1; i++) {
+                double dist = res.waypoints[i].pose.distance_to(res.waypoints[i + 1].pose);
+                if (dist > 1.5) {
+                    int num_interp_points = std::ceil(dist / 1.5);
 
-            //         for (int j = 1; j < num_interp_points; j++) {
-            //             double t = j / (double)num_interp_points;
-            //             interpolated_traj.waypoints.push_back({res.waypoints[i].pose.x +  t *
-            //             (res.waypoints[i + 1].pose.x - res.waypoints[i].pose.x),
-            //                 res.waypoints[i].pose.y + t * (res.waypoints[i + 1].pose.y -
-            //                 res.waypoints[i].pose.y)});
-            //         }
-            //     }
-            //     interpolated_traj.waypoints.push_back(res.waypoints[i + 1]);
-            // }
+                    for (int j = 1; j < num_interp_points; j++) {
+                        double t = j / (double)num_interp_points;
+                        interpolated_traj.waypoints.push_back(
+                            {res.waypoints[i].pose.x
+                                    + t * (res.waypoints[i + 1].pose.x - res.waypoints[i].pose.x),
+                                res.waypoints[i].pose.y
+                                    + t * (res.waypoints[i + 1].pose.y - res.waypoints[i].pose.y)});
+                    }
+                }
+                interpolated_traj.waypoints.push_back(res.waypoints[i + 1]);
+            }
 
             if (interpolated_traj.waypoints[0].pose.distance_to(this->start.tf_pose(resolution,
                     origin))
