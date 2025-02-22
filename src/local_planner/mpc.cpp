@@ -39,8 +39,8 @@ namespace cev_planner::local_planner {
 
             cost += current_cost * dist;
 
-            if (dist < .3) {
-                current_cost /= 3;
+            if (dist < .2) {
+                current_cost /= 4;
             } else {
                 current_cost = 0;
             }
