@@ -85,7 +85,7 @@ namespace cev_planner::global_planner {
                 if (iteration % 500 == 0 and goalFlag
                     and (abs(bestCost - distToGoal) < 1
                          or (in_region / log(bestCost + 2)
-                             > min(max(bestCost / 2000 * 75 + 275, 275.0), 350.0))))
+                             > min(max(bestCost / 2000 * 75 + 275, 275.0), 375.0))))
                     break;
 
                 expand();
@@ -191,10 +191,12 @@ namespace cev_planner::global_planner {
         Random rand;
         double resolution;
         Pose origin;
-        Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic> obstacle_grid;
+        // Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic> obstacle_grid;
+        Grid* grid;
 
         void cache_obstacle_grid(Grid& grid) {
-            dilate_grid(grid, start, goal, create_circular_structure(1.0), 5.0, 0.7f);
+            this->grid = &grid;
+            // dilate_grid(grid, start, goal, create_circular_structure(0.0), 5.0, 0.7f);
         }
 
         void dilate_grid(Grid& grid, const Node& start, const Node& goal,
@@ -227,15 +229,21 @@ namespace cev_planner::global_planner {
         bool is_ancestor(int potential_ancestor, int node,
             unordered_map<int, Node>* nodes = nullptr);
 
-        bool is_occupied(Coordinate coordinate) {
+        bool is_surrounded(int x1, int y1);
+
+        bool is_occupied(Coordinate& coordinate, bool allow_unknown = false) {
             if (coordinate.x < 0 || coordinate.x >= mapw || coordinate.y < 0
                 || coordinate.y >= maph)
                 return true;
-            return obstacle_grid(coordinate.x, coordinate.y);
+            double val = grid->data(coordinate.x, coordinate.y);
+            return val > 0.7f || !(allow_unknown || val >= 0);
         }
 
-        bool is_occupied(int x, int y) {
-            return obstacle_grid(x, y);
+        bool is_occupied(int x, int y, bool allow_unknown = false) {
+            if (x < 0 || x >= mapw || y < 0 || y >= maph)
+                return true;
+            double val = grid->data(x, y);
+            return val > 0.7f || !(allow_unknown || val >= 0);
         }
 
         int get_next_index(bool from_goal) {

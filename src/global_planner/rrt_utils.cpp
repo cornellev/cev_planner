@@ -228,7 +228,7 @@ namespace cev_planner::global_planner {
             double final_x = round(x_rotated + centerX);
             double final_y = round(y_rotated + centerY);
 
-            if ((0 <= final_x && final_x < maxX) && (0 <= final_y && final_y < maxY) && !obstacle_grid((int)final_x, (int)final_y)) {
+            if ((0 <= final_x && final_x < maxX) && (0 <= final_y && final_y < maxY)) {
                 return {abs(final_x), abs(final_y)};
             }
         }
