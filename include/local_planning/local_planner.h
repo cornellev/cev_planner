@@ -78,6 +78,12 @@ namespace cev_planner::local_planner {
                 auto end_time = std::chrono::high_resolution_clock::now();
 
                 std::chrono::duration<double> elapsed = end_time - start_time;
+
+                // std::cout << "Cost Map calculated in: "
+                //           <<
+                //           std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count()
+                //           << "ms" << std::endl;
+
                 // costmap_initialized = true;
             }
 
@@ -88,11 +94,11 @@ namespace cev_planner::local_planner {
 
             Trajectory trajectory = this->calculate_trajectory();
 
-            std::cout << "Trajectory calculated in: "
-                      << std::chrono::duration_cast<std::chrono::milliseconds>(
-                             std::chrono::high_resolution_clock::now() - start_time)
-                             .count()
-                      << "ms" << std::endl;
+            // std::cout << "Trajectory calculated in: "
+            //           << std::chrono::duration_cast<std::chrono::milliseconds>(
+            //                  std::chrono::high_resolution_clock::now() - start_time)
+            //                  .count()
+            //           << "ms" << std::endl;
 
             cev_planner::vis::vis_trajectory(grid, start, trajectory, target);
 

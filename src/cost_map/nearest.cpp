@@ -55,6 +55,14 @@ namespace cev_planner::cost_map {
 
         for (int i = 0; i < grid.data.rows(); ++i) {
             for (int j = 0; j < grid.data.cols(); ++j) {
+                if (grid.data(i, j) < 0.0) {
+                    grid.data(i, j) = .3;
+                }
+            }
+        }
+
+        for (int i = 0; i < grid.data.rows(); ++i) {
+            for (int j = 0; j < grid.data.cols(); ++j) {
                 float sum = 0.0f;
                 for (int k = -search_radius; k <= search_radius; ++k) {
                     int idx = j + k;

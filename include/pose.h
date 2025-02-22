@@ -62,8 +62,11 @@ namespace cev_planner {
         State update(Input input, double dt, Dimensions& dimensions, Constraints& constraints) {
             State _state = *this;
 
-            double accel = std::clamp(input.vel - vel, constraints.accel[0], constraints.accel[1]);
-            double dtau = std::clamp(input.tau - tau, constraints.dtau[0], constraints.dtau[1]);
+            // double accel = std::clamp(input.vel - vel, constraints.accel[0],
+            // constraints.accel[1]); double dtau = std::clamp(input.tau - tau, constraints.dtau[0],
+            // constraints.dtau[1]);
+            double accel = std::clamp(input.vel, constraints.accel[0], constraints.accel[1]);
+            double dtau = std::clamp(input.tau, constraints.dtau[0], constraints.dtau[1]);
 
             _state.vel = std::clamp(vel + accel * dt, constraints.vel[0], constraints.vel[1]);
             _state.tau = std::clamp(tau + dtau * dt, constraints.tau[0], constraints.tau[1]);

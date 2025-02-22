@@ -22,6 +22,7 @@ namespace cev_planner {
         // Waypoints in the trajectory
         std::vector<State> waypoints;
         float cost;
+        float timestep;
     };
 
 }  // namespace cev_planner

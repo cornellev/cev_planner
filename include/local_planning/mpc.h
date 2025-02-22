@@ -13,7 +13,7 @@ namespace cev_planner::local_planner {
      */
     class MPC : public LocalPlanner {
     protected:
-        int num_inputs = 10;
+        int num_inputs = 15;
         float dt = .25;
         int horizon_extension_iters = 1;  // 5 horizon extension steps
         int keep_per_extension = 10;      // keep 3/num_inputs of the best path
@@ -41,8 +41,10 @@ namespace cev_planner::local_planner {
             std::shared_ptr<CostMapGenerator> cost_map_generator)
             : LocalPlanner(dimensions, constraints, cost_map_generator) {
             opt = nlopt::opt(nlopt::LN_BOBYQA, 1 + (num_inputs * 2));
+            // opt = nlopt::opt(nlopt::LN_BOBYQA, num_inputs * 2);
             opt.set_min_objective(objective_function, this);
-            opt.set_xtol_rel(1e-4);
+            opt.set_xtol_rel(1e-8);
+            // nlopt::srand(0);
             // TODO: Experiment with randomness settings, initial step based on angle?
         }
 

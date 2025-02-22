@@ -18,10 +18,12 @@ include_directories(
 # Compile the library (static or shared)
 add_library(cev_planner STATIC
     src/global_planner/rrt.cpp
+    src/global_planner/rrt_utils.cpp
     src/local_planner/mpc.cpp
     src/cost_map/gaussian_conv.cpp
     src/vis/vis.cpp
     src/cost_map/nearest.cpp
+    src/cost_map/nothing.cpp
 )
 
 target_link_libraries(cev_planner Eigen3::Eigen ${NLOPT_LIBRARIES} ${OpenCV_LIBS})
