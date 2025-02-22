@@ -98,8 +98,8 @@ namespace cev_planner::global_planner {
      */
     class Ellipse {
         public:
-        Ellipse(const Pose& focus1, const Pose& focus2, double majorAxisLength, int maxX, int maxY, Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic>& obstacle_grid)
-        : maxX(maxX), maxY(maxY), obstacle_grid(obstacle_grid) {
+        Ellipse(const Pose& focus1, const Pose& focus2, double majorAxisLength, int maxX, int maxY)
+        : maxX(maxX), maxY(maxY) {
             centerX = (focus1.x + focus2.x) / 2;
             centerY = (focus1.y + focus2.y) / 2;
             a = majorAxisLength / 2;
@@ -116,7 +116,6 @@ namespace cev_planner::global_planner {
         private:
             int maxX, maxY;
             double centerX, centerY, a, b, c, rotation;
-            Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic> obstacle_grid;
             Random rand;
     };
 }  // namespace cev_planner::global_planner

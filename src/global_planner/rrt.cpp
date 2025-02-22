@@ -41,7 +41,7 @@ namespace cev_planner::global_planner {
                     && (grid.data(i, j) >= 0 && grid.data(i, j) < occupation_threshold)) {
                     safe_zones(i, j) = true;
 
-                    for (const auto& p: structure) {
+                    for (const auto& p: create_circular_structure(safe_zone_radius)) {
                         int ni = i + p[0];
                         int nj = j + p[1];
 
@@ -77,7 +77,7 @@ namespace cev_planner::global_planner {
             }
         }
 
-        this->obstacle_grid = result;
+        // this->obstacle_grid = result;
     }
 
     vector<array<int, 2>> RRT::create_circular_structure(double radius) {
@@ -208,7 +208,7 @@ namespace cev_planner::global_planner {
                 sampling_region = new SamplingRegion{
                     d_base, calculate_k(), getPathCoords(), mapw - 1, maph - 1};
                 ellipse = new Ellipse{
-                    startCoordPose, goalCoordPose, bestCost, mapw, maph, obstacle_grid};
+                    startCoordPose, goalCoordPose, bestCost, mapw, maph};
             } else
                 sampling_region->shorten_radius(calculate_k());
         }
@@ -259,11 +259,10 @@ namespace cev_planner::global_planner {
 
                     for (int j = 1; j < num_interp_points; j++) {
                         double t = j / (double)num_interp_points;
-                        interpolated_traj.waypoints.push_back(
-                            {res.waypoints[i].pose.x
-                                    + t * (res.waypoints[i + 1].pose.x - res.waypoints[i].pose.x),
-                                res.waypoints[i].pose.y
-                                    + t * (res.waypoints[i + 1].pose.y - res.waypoints[i].pose.y)});
+                        interpolated_traj.waypoints.push_back({res.waypoints[i].pose.x +  t *
+                        (res.waypoints[i + 1].pose.x - res.waypoints[i].pose.x),
+                            res.waypoints[i].pose.y + t * (res.waypoints[i + 1].pose.y -
+                            res.waypoints[i].pose.y)});
                     }
                 }
                 interpolated_traj.waypoints.push_back(res.waypoints[i + 1]);
@@ -342,6 +341,17 @@ namespace cev_planner::global_planner {
         return cur_this;
     }
 
+    bool RRT::is_surrounded(int x1, int y1) {
+        for (int i = -1; i <= 1; i++) {
+            for (int j = -1; j <= 1; j++) {
+                if (i == 0 && j == 0) continue;
+                if (is_occupied(x1 + i, y1 + j, true))
+                    return true;
+            }
+        }
+        return false;
+    }
+
     bool RRT::cross_obstacle_points(Coordinate& startPoint, Coordinate& endPoint) {
         int x1 = startPoint.x;
         int y1 = startPoint.y;
@@ -350,23 +360,46 @@ namespace cev_planner::global_planner {
 
         int dx = abs(x2 - x1);
         int dy = abs(y2 - y1);
-        int sx = (x1 < x2) * 2 - 1;
-        int sy = (y1 < y2) * 2 - 1;
+        int sx = (x1 < x2) ? 1 : -1;
+        int sy = (y1 < y2) ? 1 : -1;
         int err = dx - dy;
 
         while (true) {
-            if (is_occupied(x1, y1)) return true;
-            if (x1 == x2 && y1 == y2) break;
-            int e2 = err * 2;
+            if (is_occupied(x1, y1) || is_surrounded(x1, y1)) {
+                return true;
+            }
+    
+            if (x1 == x2 && y1 == y2) {
+                break;
+            }
+    
+            int e2 = 2 * err;
+            // bool moved_x = false, moved_y = false;
+    
             if (e2 > -dy) {
                 err -= dy;
                 x1 += sx;
+                // moved_x = true;
             }
+    
             if (e2 < dx) {
                 err += dx;
                 y1 += sy;
+                // moved_y = true;
             }
+    
+            // if (moved_x) {
+            //     if (is_occupied(x1, y1+1) || is_occupied(x1, y1-1)) {
+            //         return true;
+            //     }
+            // }
+            // if (moved_y) {
+            //     if (is_occupied(x1 + 1, y1) || is_occupied(x1 - 1, y1)) {
+            //         return true;
+            //     }
+            // }
         }
+    
         return false;
     }
 
