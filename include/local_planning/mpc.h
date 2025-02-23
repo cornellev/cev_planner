@@ -37,17 +37,13 @@ namespace cev_planner::local_planner {
          * @param constraints Constraints on the robot's motion
          * @param cost_map_generator Cost map generator
          */
-        MPC(Dimensions dimensions, Constraints constraints,
-            std::shared_ptr<CostMapGenerator> cost_map_generator)
-            : LocalPlanner(dimensions, constraints, cost_map_generator) {
+        MPC(Dimensions dimensions, Constraints constraints): LocalPlanner(dimensions, constraints) {
             opt = nlopt::opt(nlopt::LN_BOBYQA, 1 + (num_inputs * 2));
             // opt = nlopt::opt(nlopt::LN_BOBYQA, num_inputs * 2);
             opt.set_min_objective(objective_function, this);
             opt.set_xtol_rel(1e-8);
-            // nlopt::srand(0);
-            // TODO: Experiment with randomness settings, initial step based on angle?
         }
 
-        Trajectory calculate_trajectory();
+        Trajectory calculate_trajectory(Trajectory initial_guess);
     };
 }  // namespace cev_planner::local_planner

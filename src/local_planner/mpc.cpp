@@ -217,17 +217,31 @@ namespace cev_planner::local_planner {
     //     return trajectory;
     // }
 
-    Trajectory MPC::calculate_trajectory() {
+    Trajectory MPC::calculate_trajectory(Trajectory initial_guess) {
         std::vector<double> x;
 
         x.push_back(dt);
 
         temp_start = std::make_unique<State>(start);
 
+        // Fill initial guess
+
+        // Fill with 0s
         for (int i = 0; i < num_inputs; i++) {
             x.push_back(0);
-            x.push_back(start.vel);
+            x.push_back(0);
         }
+
+        // for (int i = 1; i < initial_guess.waypoints.size(); i++) {
+        //     int index = (i - 1) * 2;
+
+        //     x[index] = (initial_guess.waypoints[i].tau - initial_guess.waypoints[i - 1].tau)
+        //                / initial_guess.timestep;
+        //     x[index + 1] = (initial_guess.waypoints[i].vel - initial_guess.waypoints[i - 1].vel)
+        //                    / initial_guess.timestep;
+        // }
+
+        // std::cout << "Starting optimization with x size:" << std::endl;
 
         // Define constraints
         std::vector<double> lb = {.1};
@@ -244,9 +258,18 @@ namespace cev_planner::local_planner {
             ub.push_back(constraints.accel[1]);
         }
 
+        // std::cout << x.size() << std::endl;
+
+        // std::cout << "Inputs: " << std::endl;
+        // for (int i = 0; i < x.size(); i++) {
+        //     std::cout << x[i] << " ";
+        // }
+        // std::cout << std::endl;
+
         // Optimize
         // nlopt::srand(0);
         optimize_iter(opt, x);
+        // std::cout << "Optimization complete" << std::endl;
 
         std::vector<double> x_ = std::vector<double>(x.begin() + 1, x.end());
 
@@ -258,6 +281,8 @@ namespace cev_planner::local_planner {
         trajectory.cost = path_waypoints_cost(path);
         // trajectory.timestep = x[0];
         trajectory.timestep = this->dt;
+
+        // std::cout << "Cost: " << trajectory.cost << std::endl;
 
         return trajectory;
     }

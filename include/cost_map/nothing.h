@@ -33,7 +33,7 @@ namespace cev_planner::cost_map {
             kernel = gen_kernel(search_radius, power);
         }
 
-        std::unique_ptr<CostMap> generate_cost_map(Grid grid) override;
+        std::shared_ptr<CostMap> generate_cost_map(Grid grid) override;
     };
 
 }  // namespace cev_planner::cost_map

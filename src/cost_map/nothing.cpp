@@ -75,12 +75,12 @@ namespace cev_planner::cost_map {
     //     return std::make_unique<NothingCostMap>(cost_map_);
     // }
 
-    std::unique_ptr<CostMap> Nothing::generate_cost_map(Grid grid) {
+    std::shared_ptr<CostMap> Nothing::generate_cost_map(Grid grid) {
         // Convolution along rows
         Eigen::MatrixXf cost_map = Eigen::MatrixXf::Zero(grid.data.rows(), grid.data.cols());
 
-        for (int i = 1; i < grid.data.rows() - 1; i++) {
-            for (int j = 1; j < grid.data.cols() - 1; j++) {
+        for (int i = search_radius; i < grid.data.rows() - search_radius - 1; i++) {
+            for (int j = search_radius; j < grid.data.cols() - search_radius - 1; j++) {
                 if (grid.data(i, j) < 0.0) {
                     cost_map(i, j) = .3;
                 } else if (grid.data(i, j) < .5) {
@@ -90,8 +90,8 @@ namespace cev_planner::cost_map {
                 }
 
                 // Expand outward
-                for (int a = -1; a < 2; a++) {
-                    for (int b = -1; b < 2; b++) {
+                for (int a = -search_radius; a < search_radius + 1; a++) {
+                    for (int b = -search_radius; b < search_radius + 1; b++) {
                         if (cost_map(i + a, j + b) < cost_map(i, j)) {
                             cost_map(i + a, j + b) = cost_map(i, j);
                         }
@@ -107,6 +107,6 @@ namespace cev_planner::cost_map {
 
         cev_planner::vis::vis_costmap(grid, cost_map_);
 
-        return std::make_unique<NothingCostMap>(cost_map_);
+        return std::make_shared<NothingCostMap>(cost_map_);
     }
 }

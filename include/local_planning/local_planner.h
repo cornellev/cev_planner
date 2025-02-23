@@ -30,10 +30,7 @@ namespace cev_planner::local_planner {
         State target;
         Trajectory waypoints;
 
-        std::shared_ptr<CostMapGenerator> cost_map_generator;
-        std::unique_ptr<CostMap> costmap;
-        std::unique_ptr<CostMap> new_costmap;
-        bool costmap_initialized = false;
+        std::shared_ptr<CostMap> costmap;
 
         std::thread costmap_thread;
 
@@ -45,11 +42,9 @@ namespace cev_planner::local_planner {
          * @param constraints Constraints on the robot's motion
          * @param cost_map_generator Cost map generator
          */
-        LocalPlanner(Dimensions dimensions, Constraints constraints,
-            std::shared_ptr<CostMapGenerator> cost_map_generator) {
+        LocalPlanner(Dimensions dimensions, Constraints constraints) {
             this->dimensions = dimensions;
             this->constraints = constraints;
-            this->cost_map_generator = cost_map_generator;
         }
 
         /**
@@ -61,50 +56,29 @@ namespace cev_planner::local_planner {
          * @param target Target `State` of the robot
          * @return `Trajectory` from the start pose to the target pose
          */
-        Trajectory plan_path(Grid grid, State start, State target, Trajectory waypoints) {
+        Trajectory plan_path(Grid grid, State start, State target, Trajectory waypoints,
+            Trajectory initial_guess, std::shared_ptr<CostMap> cost_map) {
             this->grid = grid;
             this->start = start;
             this->target = target;
             this->waypoints = waypoints;
-
-            if (costmap_initialized) {
-                // Asynchronously calculate the costmap
-                std::thread costmap_thread([this, grid, start] {
-                    this->new_costmap = this->cost_map_generator->generate_cost_map(grid);
-                });
-            } else {
-                auto start_time = std::chrono::high_resolution_clock::now();
-                this->new_costmap = this->cost_map_generator->generate_cost_map(grid);
-                auto end_time = std::chrono::high_resolution_clock::now();
-
-                std::chrono::duration<double> elapsed = end_time - start_time;
-
-                // std::cout << "Cost Map calculated in: "
-                //           <<
-                //           std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count()
-                //           << "ms" << std::endl;
-
-                // costmap_initialized = true;
-            }
-
-            // Update costmap in case new one calculated
-            this->costmap = std::move(this->new_costmap);
+            this->costmap = cost_map;
 
             auto start_time = std::chrono::high_resolution_clock::now();
 
-            Trajectory trajectory = this->calculate_trajectory();
-
+            // std::cout << "Calculating trajectory..." << std::endl;
+            Trajectory trajectory = this->calculate_trajectory(initial_guess);
             // std::cout << "Trajectory calculated in: "
             //           << std::chrono::duration_cast<std::chrono::milliseconds>(
             //                  std::chrono::high_resolution_clock::now() - start_time)
             //                  .count()
             //           << "ms" << std::endl;
 
-            cev_planner::vis::vis_trajectory(grid, start, trajectory, target);
+            // cev_planner::vis::vis_trajectory(grid, start, trajectory, target);
 
             return trajectory;
         }
 
-        virtual Trajectory calculate_trajectory() = 0;
+        virtual Trajectory calculate_trajectory(Trajectory initial_guess) = 0;
     };
 }  // namespace cev_planner::local_planner
