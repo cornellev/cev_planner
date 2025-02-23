@@ -105,7 +105,7 @@ namespace cev_planner::cost_map {
         cost_map_.origin = grid.origin;
         cost_map_.resolution = grid.resolution;
 
-        cev_planner::vis::vis_costmap(grid, cost_map_);
+        // cev_planner::vis::vis_costmap(grid, cost_map_);
 
         return std::make_shared<NothingCostMap>(cost_map_);
     }

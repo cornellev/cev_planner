@@ -207,8 +207,7 @@ namespace cev_planner::global_planner {
                 delete ellipse;
                 sampling_region = new SamplingRegion{
                     d_base, calculate_k(), getPathCoords(), mapw - 1, maph - 1};
-                ellipse = new Ellipse{
-                    startCoordPose, goalCoordPose, bestCost, mapw, maph};
+                ellipse = new Ellipse{startCoordPose, goalCoordPose, bestCost, mapw, maph};
             } else
                 sampling_region->shorten_radius(calculate_k());
         }
@@ -250,19 +249,22 @@ namespace cev_planner::global_planner {
             // add interpolation points so no point to point distance is < 1.5
             Trajectory interpolated_traj;
 
+            float interp_dist = 1.2;
+
             interpolated_traj.waypoints.push_back(res.waypoints[0]);
 
             for (int i = 0; i < res.waypoints.size() - 1; i++) {
                 double dist = res.waypoints[i].pose.distance_to(res.waypoints[i + 1].pose);
-                if (dist > 1.5) {
-                    int num_interp_points = std::ceil(dist / 1.5);
+                if (dist > interp_dist) {
+                    int num_interp_points = std::ceil(dist / interp_dist);
 
                     for (int j = 1; j < num_interp_points; j++) {
                         double t = j / (double)num_interp_points;
-                        interpolated_traj.waypoints.push_back({res.waypoints[i].pose.x +  t *
-                        (res.waypoints[i + 1].pose.x - res.waypoints[i].pose.x),
-                            res.waypoints[i].pose.y + t * (res.waypoints[i + 1].pose.y -
-                            res.waypoints[i].pose.y)});
+                        interpolated_traj.waypoints.push_back(
+                            {res.waypoints[i].pose.x
+                                    + t * (res.waypoints[i + 1].pose.x - res.waypoints[i].pose.x),
+                                res.waypoints[i].pose.y
+                                    + t * (res.waypoints[i + 1].pose.y - res.waypoints[i].pose.y)});
                     }
                 }
                 interpolated_traj.waypoints.push_back(res.waypoints[i + 1]);
@@ -345,8 +347,7 @@ namespace cev_planner::global_planner {
         for (int i = -1; i <= 1; i++) {
             for (int j = -1; j <= 1; j++) {
                 if (i == 0 && j == 0) continue;
-                if (is_occupied(x1 + i, y1 + j, true))
-                    return true;
+                if (is_occupied(x1 + i, y1 + j, true)) return true;
             }
         }
         return false;
@@ -368,26 +369,26 @@ namespace cev_planner::global_planner {
             if (is_occupied(x1, y1) || is_surrounded(x1, y1)) {
                 return true;
             }
-    
+
             if (x1 == x2 && y1 == y2) {
                 break;
             }
-    
+
             int e2 = 2 * err;
             // bool moved_x = false, moved_y = false;
-    
+
             if (e2 > -dy) {
                 err -= dy;
                 x1 += sx;
                 // moved_x = true;
             }
-    
+
             if (e2 < dx) {
                 err += dx;
                 y1 += sy;
                 // moved_y = true;
             }
-    
+
             // if (moved_x) {
             //     if (is_occupied(x1, y1+1) || is_occupied(x1, y1-1)) {
             //         return true;
@@ -399,7 +400,7 @@ namespace cev_planner::global_planner {
             //     }
             // }
         }
-    
+
         return false;
     }
 
