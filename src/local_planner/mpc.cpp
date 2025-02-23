@@ -12,6 +12,11 @@ namespace cev_planner::local_planner {
         return cost;
     }
 
+    double horizontal_dist_to_line(State current, State point) {
+        return std::abs((point.pose.y - current.pose.y) * std::cos(current.pose.theta)
+                        - (point.pose.x - current.pose.x) * std::sin(current.pose.theta));
+    }
+
     double MPC::path_waypoints_cost(std::vector<State>& path) {
         double cost = 0;
         double waypoint_radius = 1.5;
@@ -45,6 +50,23 @@ namespace cev_planner::local_planner {
                 current_cost = 0;
             }
         }
+
+        float dist_last_waypoint_to_waypoint_line = 0;
+
+        // Calculate normal distance to the line formed by the first waypoint at its theta
+
+        current_cost = 3;
+
+        for (int i = path.size() - 1; i >= 0; i--) {
+            dist_last_waypoint_to_waypoint_line = horizontal_dist_to_line(path[i],
+                waypoints.waypoints[0]);
+            cost += current_cost * dist_last_waypoint_to_waypoint_line;
+            current_cost /= 4;
+        }
+        // Add angle diff cost for the final position of the planned path to the first waypoint
+
+        // if (dist)
+        cost += .2 * std::abs(path[path.size() - 1].pose.theta - waypoints.waypoints[0].pose.theta);
 
         // for (int i = 1; i < path.size(); i++) {
         //     for (int j = 0; j < waypoints.waypoints.size(); j++) {
@@ -104,7 +126,7 @@ namespace cev_planner::local_planner {
         }
 
         std::vector<State> path = this->decompose(*this->temp_start, x_, t);
-        return 5 * path_obs_cost(path) + 5 * path_waypoints_cost(path);
+        return 10 * path_obs_cost(path) + 5 * path_waypoints_cost(path);
     }
 
     double MPC::objective_function(const std::vector<double>& x, std::vector<double>& grad,

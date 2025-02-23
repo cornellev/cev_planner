@@ -249,7 +249,7 @@ namespace cev_planner::global_planner {
             // add interpolation points so no point to point distance is < 1.5
             Trajectory interpolated_traj;
 
-            float interp_dist = 1.2;
+            float interp_dist = 1.5;
 
             interpolated_traj.waypoints.push_back(res.waypoints[0]);
 
