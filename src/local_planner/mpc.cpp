@@ -34,8 +34,8 @@ namespace cev_planner::local_planner {
 
         float cost = 0;
 
-        int end_waypoint_0 = path_size;
-        int end_waypoint_1 = path_size;
+        // int end_waypoint_0 = path_size;
+        // int end_waypoint_1 = path_size;
 
         // if (waypoints_size > 1 && path_size >= 10) {
         //     end_waypoint_0 = ceil(path_size * .8);
@@ -44,12 +44,12 @@ namespace cev_planner::local_planner {
 
         // Divide the path up into parts, compute distance to first waypoint and next waypoint
         // separately
-        for (int i = 1; i < end_waypoint_0; i++) {
-            float dist = (1 + i / 5.0) * path[i].pose.distance_to(waypoints.waypoints[0].pose);
+        for (int i = 1; i < path_size; i++) {
+            float dist = ((float)i) * path[i].pose.distance_to(waypoints.waypoints[0].pose);
             cost += dist;
 
             if (waypoints_size > 1 && dist < 1.0) {
-                cost += (i / 10.0) * path[i].pose.distance_to(waypoints.waypoints[1].pose);
+                cost += (i / 2.0) * path[i].pose.distance_to(waypoints.waypoints[1].pose);
             }
         }
         // for (int i = end_waypoint_0; i < end_waypoint_1; i++) {
@@ -137,7 +137,7 @@ namespace cev_planner::local_planner {
         // }
 
         std::vector<State> path = this->decompose(*this->temp_start, x, this->dt);
-        return 5 * path_obs_cost(path) + 5 * path_waypoints_cost(path);
+        return 8 * path_obs_cost(path) + 5 * path_waypoints_cost(path);
     }
 
     double MPC::objective_function(const std::vector<double>& x, std::vector<double>& grad,
