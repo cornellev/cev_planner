@@ -22,7 +22,7 @@ namespace cev_planner::vis {
         cv::imwrite("./costmap.png", img);
     }
 
-    void vis_trajectory(Grid grid, State start, Trajectory trajectory, State target) {
+    void vis_trajectory(Grid grid, State start, Trajectory trajectory, State target, Trajectory waypoints) {
         cv::Mat img(grid.data.rows(), grid.data.cols(), CV_8UC3, cv::Vec3b(0, 0, 0));
 
         for (int i = 0; i < grid.data.rows(); ++i) {
@@ -36,6 +36,13 @@ namespace cev_planner::vis {
         }
 
         for (State waypoint: trajectory.waypoints) {
+            int x = (waypoint.pose.x - grid.origin.x) / grid.resolution;
+            int y = (waypoint.pose.y - grid.origin.y) / grid.resolution;
+
+            img.at<cv::Vec3b>(x, y) = cv::Vec3b(0, 255, 0);
+        }
+
+        for (State waypoint: waypoints.waypoints) {
             int x = (waypoint.pose.x - grid.origin.x) / grid.resolution;
             int y = (waypoint.pose.y - grid.origin.y) / grid.resolution;
 

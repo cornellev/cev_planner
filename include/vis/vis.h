@@ -14,6 +14,6 @@ namespace cev_planner::vis {
 
     void vis_costmap(Grid grid, Grid costs);
 
-    void vis_trajectory(Grid grid, State start, Trajectory trajectory, State target);
+    void vis_trajectory(Grid grid, State start, Trajectory trajectory, State target, Trajectory waypoints);
 
 }  // namespace cev_planner::vis
