@@ -49,7 +49,7 @@ namespace cev_planner::cost_map {
         return kernel;
     }
 
-    std::unique_ptr<CostMap> NearestGenerator::generate_cost_map(Grid grid) {
+    std::shared_ptr<CostMap> NearestGenerator::generate_cost_map(Grid grid) {
         // Convolution along rows
         Eigen::MatrixXf row_conv = Eigen::MatrixXf::Zero(grid.data.rows(), grid.data.cols());
 
@@ -100,6 +100,6 @@ namespace cev_planner::cost_map {
 
         cev_planner::vis::vis_costmap(grid, cost_map_);
 
-        return std::make_unique<NearestCostMap>(cost_map_);
+        return std::make_shared<NearestCostMap>(cost_map_);
     }
 }

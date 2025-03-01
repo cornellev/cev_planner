@@ -12,39 +12,72 @@ namespace cev_planner::local_planner {
         return cost;
     }
 
+    std::pair<double, double> dist_vector(State a, State b) {
+        // Make a distance vector from a to b given the angle of b
+        double x = b.pose.x - a.pose.x;
+        double y = b.pose.y - a.pose.y;
+        double angle = b.pose.theta;
+
+        double x_ = x * cos(angle) + y * sin(angle);
+        double y_ = -x * sin(angle) + y * cos(angle);
+
+        return {x_, y_};
+    }
+
+    float total_second_half_weight = .5;
+    float second_half_weight_first = .2 * total_second_half_weight;
+    float second_half_weight_second = .8 * total_second_half_weight;
+
     double MPC::path_waypoints_cost(std::vector<State>& path) {
-        double cost = 0;
-        double waypoint_radius = 1.5;
-        double within_waypoint = 1.5;
-        double target_radius = 3;
+        int waypoints_size = waypoints.waypoints.size();
+        int path_size = path.size();
 
-        double waypoint_weight = 1.5;
+        float cost = 0;
 
-        int current_waypoint = 0;
+        // int end_waypoint_0 = path_size;
+        // int end_waypoint_1 = path_size;
 
-        int size = waypoints.waypoints.size();
+        // if (waypoints_size > 1 && path_size >= 10) {
+        //     end_waypoint_0 = ceil(path_size * .8);
+        //     end_waypoint_1 = path_size;
+        // }
 
-        double dist = 0;
+        // Divide the path up into parts, compute distance to first waypoint and next waypoint
+        // separately
+        for (int i = 1; i < path_size; i++) {
+            float dist = ((float)i) * path[i].pose.distance_to(waypoints.waypoints[0].pose);
+            cost += dist;
 
-        float current_cost = 2;
-
-        for (int j = 0; j < waypoints.waypoints.size(); j++) {
-            dist = path[path.size() - 1].pose.distance_to(waypoints.waypoints[j].pose);
-            if (path.size() > 2) {
-                dist += path[path.size() - 2].pose.distance_to(waypoints.waypoints[j].pose);
-            }
-            if (path.size() > 3) {
-                dist += path[path.size() - 3].pose.distance_to(waypoints.waypoints[j].pose);
-            }
-
-            cost += current_cost * dist;
-
-            if (dist < .2) {
-                current_cost /= 4;
-            } else {
-                current_cost = 0;
+            if (waypoints_size > 1 && dist < 1.0) {
+                cost += (i / 2.0) * path[i].pose.distance_to(waypoints.waypoints[1].pose);
             }
         }
+        // for (int i = end_waypoint_0; i < end_waypoint_1; i++) {
+        //     cost += second_half_weight_first
+        //             * path[i].pose.distance_to(waypoints.waypoints[1].pose);
+        //     cost += second_half_weight_second
+        //             * path[i].pose.distance_to(waypoints.waypoints[1].pose);
+        // }
+
+        // float current_cost = 2;
+
+        // for (int j = 0; j < waypoints.waypoints.size(); j++) {
+        //     dist = path[path.size() - 1].pose.distance_to(waypoints.waypoints[j].pose);
+        //     if (path.size() > 2) {
+        //         dist += path[path.size() - 2].pose.distance_to(waypoints.waypoints[j].pose);
+        //     }
+        //     if (path.size() > 3) {
+        //         dist += path[path.size() - 3].pose.distance_to(waypoints.waypoints[j].pose);
+        //     }
+
+        //     cost += current_cost * dist;
+
+        //     if (dist < .2) {
+        //         current_cost /= 4;
+        //     } else {
+        //         current_cost = 0;
+        //     }
+        // }
 
         // for (int i = 1; i < path.size(); i++) {
         //     for (int j = 0; j < waypoints.waypoints.size(); j++) {
@@ -93,18 +126,18 @@ namespace cev_planner::local_planner {
 
     double MPC::costs(const std::vector<double>& x) {
         // Show elements from second element of x onward
-        std::vector<double> x_ = std::vector<double>(x.begin() + 1, x.end());
+        // std::vector<double> x_ = std::vector<double>(x.begin() + 1, x.end());
 
-        float t = this->dt;
+        // float t = this->dt;
 
-        if (t > .75) {
-            t = .75;
-        } else if (t < 0) {
-            t = 0;
-        }
+        // if (t > .75) {
+        //     t = .75;
+        // } else if (t < 0) {
+        //     t = 0;
+        // }
 
-        std::vector<State> path = this->decompose(*this->temp_start, x_, t);
-        return 5 * path_obs_cost(path) + 5 * path_waypoints_cost(path);
+        std::vector<State> path = this->decompose(*this->temp_start, x, this->dt);
+        return 8 * path_obs_cost(path) + 5 * path_waypoints_cost(path);
     }
 
     double MPC::objective_function(const std::vector<double>& x, std::vector<double>& grad,
@@ -217,21 +250,36 @@ namespace cev_planner::local_planner {
     //     return trajectory;
     // }
 
-    Trajectory MPC::calculate_trajectory() {
+    Trajectory MPC::calculate_trajectory(Trajectory initial_guess) {
         std::vector<double> x;
 
-        x.push_back(dt);
+        // x.push_back(dt);
 
         temp_start = std::make_unique<State>(start);
 
+        // Fill initial guess
+
+        // Fill with 0s
         for (int i = 0; i < num_inputs; i++) {
             x.push_back(0);
-            x.push_back(start.vel);
+            x.push_back(0);
         }
 
+        // for (int i = 1; i < initial_guess.waypoints.size(); i++) {
+        //     int index = (i - 1) * 2;
+
+        //     x[index] = (initial_guess.waypoints[i].tau - initial_guess.waypoints[i - 1].tau)
+        //                / initial_guess.timestep;
+        //     x[index + 1] = (initial_guess.waypoints[i].vel - initial_guess.waypoints[i -
+        //     1].vel)
+        //                    / initial_guess.timestep;
+        // }
+
+        // std::cout << "Starting optimization with x size:" << std::endl;
+
         // Define constraints
-        std::vector<double> lb = {.1};
-        std::vector<double> ub = {1};
+        std::vector<double> lb = {};
+        std::vector<double> ub = {};
 
         for (int i = 0; i < num_inputs; i++) {
             // lb.push_back(constraints.tau[0]);
@@ -244,20 +292,31 @@ namespace cev_planner::local_planner {
             ub.push_back(constraints.accel[1]);
         }
 
+        // std::cout << x.size() << std::endl;
+
+        // std::cout << "Inputs: " << std::endl;
+        // for (int i = 0; i < x.size(); i++) {
+        //     std::cout << x[i] << " ";
+        // }
+        // std::cout << std::endl;
+
         // Optimize
         // nlopt::srand(0);
         optimize_iter(opt, x);
+        // std::cout << "Optimization complete" << std::endl;
 
-        std::vector<double> x_ = std::vector<double>(x.begin() + 1, x.end());
+        // std::vector<double> x_ = std::vector<double>(x.begin() + 1, x.end());
 
         // Decompose the optimized trajectory
-        std::vector<State> path = decompose(start, x_, this->dt);
+        std::vector<State> path = decompose(start, x, this->dt);
 
         Trajectory trajectory;
         trajectory.waypoints = path;
-        trajectory.cost = costs(x);
+        trajectory.cost = path_waypoints_cost(path);
         // trajectory.timestep = x[0];
         trajectory.timestep = this->dt;
+
+        // std::cout << "Cost: " << trajectory.cost << std::endl;
 
         return trajectory;
     }
