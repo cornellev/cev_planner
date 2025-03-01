@@ -2,100 +2,6 @@
 #include <eigen3/Eigen/Dense>
 
 namespace cev_planner::global_planner {
-
-    void RRT::dilate_grid(Grid& grid, const RRT::Node& start, const RRT::Node& goal,
-        const std::vector<array<int, 2>>& structure, double safe_zone_radius,
-        float occupation_threshold) {
-        int rows = grid.data.rows();
-        int cols = grid.data.cols();
-
-        Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic> result(rows, cols);
-        result.setConstant(false);
-
-        Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic> safe_zones(rows, cols);
-        safe_zones.setConstant(false);
-
-        auto node_to_grid = [&](const RRT::Node& node) -> array<int, 2> {
-            return {node.x, node.y};
-        };
-
-        std::queue<array<int, 2>> q;
-
-        for (const RRT::Node& node: {start, goal}) {
-            auto [start_i, start_j] = node_to_grid(node);
-
-            Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic> visited(rows, cols);
-            visited.setConstant(false);
-
-            Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> distances(rows, cols);
-            distances.setConstant(std::numeric_limits<double>::infinity());
-
-            q.push({start_i, start_j});
-            visited(start_i, start_j) = true;
-            distances(start_i, start_j) = 0;
-            while (!q.empty()) {
-                auto [i, j] = q.front();
-                q.pop();
-
-                if (distances(i, j) <= safe_zone_radius
-                    && (grid.data(i, j) >= 0 && grid.data(i, j) < occupation_threshold)) {
-                    safe_zones(i, j) = true;
-
-                    for (const auto& p: create_circular_structure(safe_zone_radius)) {
-                        int ni = i + p[0];
-                        int nj = j + p[1];
-
-                        if (ni >= 0 && ni < rows && nj >= 0 && nj < cols && !visited(ni, nj)) {
-                            double new_dist = std::sqrt(std::pow(ni - start_i, 2)
-                                                        + std::pow(nj - start_j, 2));
-
-                            if (new_dist <= safe_zone_radius) {
-                                distances(ni, nj) = new_dist;
-                                visited(ni, nj) = true;
-                                q.push({ni, nj});
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        for (int i = 0; i < rows; ++i) {
-            for (int j = 0; j < cols; ++j) {
-                if (grid.data(i, j) < 0 || grid.data(i, j) >= occupation_threshold) {
-                    for (const auto& p: structure) {
-                        int ni = i + p[0];
-                        int nj = j + p[1];
-
-                        if (ni >= 0 && ni < rows && nj >= 0 && nj < cols) {
-                            if (!safe_zones(ni, nj)) {
-                                result(ni, nj) = true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // this->obstacle_grid = result;
-    }
-
-    vector<array<int, 2>> RRT::create_circular_structure(double radius) {
-        vector<array<int, 2>> structure;
-        int iradius = std::ceil(radius);
-        double radius_sq = radius * radius;
-
-        for (int i = -iradius; i <= iradius; ++i) {
-            for (int j = -iradius; j <= iradius; ++j) {
-                if (i * i + j * j <= radius_sq) {
-                    structure.push_back({i, j});
-                }
-            }
-        }
-
-        return structure;
-    }
-
     bool RRT::path_to_goal() {
         if (goalFlag) {
             path.clear();
@@ -217,65 +123,181 @@ namespace cev_planner::global_planner {
         }
     }
 
+    double RRT::obstacle_path_cost(int x1, int y1, int x2, int y2, int radius) {
+        int dx = abs(x2 - x1);
+        int dy = abs(y2 - y1);
+        int sx = (x1 < x2) ? 1 : -1;
+        int sy = (y1 < y2) ? 1 : -1;
+        int err = dx - dy;
+        double cost = 0;
+
+        while (true) {
+            for (int i = -radius; i <= radius; i++) {
+                for (int j = -radius; j <= radius; j++) {
+                    int x = x1 + i;
+                    int y = y1 + j;
+                    if (is_occupied(x, y)) {
+                        cost += exp(-0.1 * (i * i + j * j) / (!is_occupied(x,y,true) + 1));
+                    }
+                }
+            }
+    
+            if (x1 == x2 && y1 == y2)
+                break;
+    
+            int e2 = 2 * err;
+    
+            if (e2 > -dy) {
+                err -= dy;
+                x1 += sx;
+            }
+    
+            if (e2 < dx) {
+                err += dx;
+                y1 += sy;
+            }
+        }
+        
+        return cost;
+    }
+
+    void RRT::adjust_point(Coordinate& coordinate, Coordinate& prev, Coordinate& next, int radius) {
+        double cost = (obstacle_path_cost(coordinate.x, coordinate.y, next.x, next.y, radius) + obstacle_path_cost(coordinate.x, coordinate.y, prev.x, prev.y, radius)) / coordinate.distance_to(next);
+        int best_x = coordinate.x;
+        int best_y = coordinate.y;
+        for (int i = -radius; i <= radius; i++) {
+            for (int j = -radius; j <= radius; j++) {
+                int x = coordinate.x + i;
+                int y = coordinate.y + j;
+                if (!(i==0 && j==0) && !is_occupied(x, y) && !cross_obstacle_points(x, y, prev.x, prev.y) && !cross_obstacle_points(x, y, next.x, next.y)) {
+                    double new_cost = log(1+sqrt(i * i + j * j)) * (obstacle_path_cost(x, y, next.x, next.y, radius) + obstacle_path_cost(x, y, prev.x, prev.y, radius)) / coordinate.distance_to(next);
+                    if (new_cost < cost) {
+                        best_x = x;
+                        best_y = y;
+                        cost = new_cost;
+                    }
+                }
+            }
+        }
+        coordinate.x = best_x;
+        coordinate.y = best_y;
+    }
+
+    Trajectory RRT::interpolate_trajectory(Trajectory& input, double max_dist) {
+        Trajectory interpolated;
+        interpolated.waypoints.push_back(input.waypoints[0]);
+        
+        for (int i = 0; i < input.waypoints.size() - 1; i++) {
+            double dx = input.waypoints[i+1].pose.x - input.waypoints[i].pose.x;
+            double dy = input.waypoints[i+1].pose.y - input.waypoints[i].pose.y;
+            double dist = sqrt(dx*dx + dy*dy);
+            
+            if (dist > max_dist) {
+                int num_interp_points = std::ceil(dist / max_dist);
+                for (int j = 1; j < num_interp_points; j++) {
+                    double t = j / (double)num_interp_points;
+                    double x = input.waypoints[i].pose.x + t * dx;
+                    double y = input.waypoints[i].pose.y + t * dy;
+                    interpolated.waypoints.push_back({x, y});
+                }
+            }
+            interpolated.waypoints.push_back(input.waypoints[i+1]);
+        }
+        return interpolated;
+    }
+
+    Trajectory RRT::angle_interpolate_trajectory(Trajectory& input) {
+        Trajectory angle_interpolated;
+        angle_interpolated.waypoints.push_back(input.waypoints[0]);
+        int j = 1;
+        while (j < input.waypoints.size() - 1) {
+            double angle;
+            Pose current, next, prev;
+            prev = input.waypoints[j-1].pose;
+            current = input.waypoints[j].pose;
+            angle_interpolated.waypoints.push_back({current.x, current.y});
+            Vector2d v1 = {current.x - prev.x, current.y - prev.y};
+            bool x = false;
+            while (true) {
+                next = input.waypoints[++j].pose;
+                Vector2d v2 = {current.x - next.x, current.y - next.y};
+                double angle = acos(std::clamp(v1.dot(v2) / (v1.norm() * v2.norm()), -1.0, 1.0));
+                if (j == input.waypoints.size() - 1 || angle < 3 || cross_obstacle_tf_points(current.x, current.y, next.x, next.y)) {
+                    break;
+                }
+            }
+        }
+
+        if (j != input.waypoints.size() - 1) angle_interpolated.waypoints.push_back(input.waypoints[j]);
+        angle_interpolated.waypoints.push_back(input.waypoints.back());
+        return interpolate_trajectory(angle_interpolated);
+    }
+
     Trajectory RRT::getPathCoords(bool corrected_tf) {
         unordered_map<int, Node>* nodes = from_goal ? &goal_nodes : &this->nodes;
         Trajectory res;
+        
         if (path.empty()) return res;
-
+    
         int cur_node = path[0];
-        Pose p = corrected_tf ? nodes->at(cur_node).tf_pose(resolution, origin)
-                              : nodes->at(cur_node).as_is_pose();
-        res.waypoints.push_back({p.x, p.y});
-
+        Pose p = nodes->at(cur_node).as_is_pose();
+        res.waypoints.push_back(State(p.x, p.y));
+    
         int i = 0;
         while (i < path.size() - 1) {
             int cur = path[i];
             int next_node = path[i + 1];
-
-            if (cross_obstacle(cur_node, next_node, nodes)) {
-                p = corrected_tf ? nodes->at(cur).tf_pose(resolution, origin)
-                                 : nodes->at(cur).as_is_pose();
-                res.waypoints.push_back({p.x, p.y});
+    
+            if (cross_obstacle_nodes(cur_node, next_node, nodes)) {
+                p = nodes->at(cur).as_is_pose();
+                res.waypoints.push_back(State(p.x, p.y));
                 cur_node = cur;
             }
             i++;
         }
-
-        p = corrected_tf ? nodes->at(path[path.size() - 1]).tf_pose(resolution, origin)
-                         : nodes->at(path[path.size() - 1]).as_is_pose();
+    
+        p = nodes->at(path[path.size() - 1]).as_is_pose();
         if (!(p.x == res.waypoints.back().pose.x && p.y == res.waypoints.back().pose.y))
-            res.waypoints.push_back({p.x, p.y});
-
+            res.waypoints.push_back(State(p.x, p.y));
+    
         if (corrected_tf) {
-            // add interpolation points so no point to point distance is < 1.5
-            Trajectory interpolated_traj;
-
-            interpolated_traj.waypoints.push_back(res.waypoints[0]);
-
-            for (int i = 0; i < res.waypoints.size() - 1; i++) {
-                double dist = res.waypoints[i].pose.distance_to(res.waypoints[i + 1].pose);
-                if (dist > 1.5) {
-                    int num_interp_points = std::ceil(dist / 1.5);
-
-                    for (int j = 1; j < num_interp_points; j++) {
-                        double t = j / (double)num_interp_points;
-                        interpolated_traj.waypoints.push_back({res.waypoints[i].pose.x +  t *
-                        (res.waypoints[i + 1].pose.x - res.waypoints[i].pose.x),
-                            res.waypoints[i].pose.y + t * (res.waypoints[i + 1].pose.y -
-                            res.waypoints[i].pose.y)});
-                    }
-                }
-                interpolated_traj.waypoints.push_back(res.waypoints[i + 1]);
+            if (res.waypoints[0].pose.distance_to(this->startCoordPose) > res.waypoints[0].pose.distance_to(this->goalCoordPose)) {
+                std::reverse(res.waypoints.begin(), res.waypoints.end());
             }
 
-            if (interpolated_traj.waypoints[0].pose.distance_to(this->start.tf_pose(resolution,
-                    origin))
-                > interpolated_traj.waypoints[0].pose.distance_to(this->goal.tf_pose(resolution,
-                    origin))) {
-                std::reverse(interpolated_traj.waypoints.begin(),
-                    interpolated_traj.waypoints.end());
+            Trajectory optimized_coords;
+            optimized_coords.waypoints.reserve(res.waypoints.size());
+            int old_x, old_y;
+            int rad = 5;
+            if (!res.waypoints.empty()) {
+                old_x = res.waypoints.front().pose.x;
+                old_y = res.waypoints.front().pose.y;
+                Pose p = Coordinate(res.waypoints.front().pose.x, res.waypoints.front().pose.y).tf_pose(resolution, origin);
+                optimized_coords.waypoints.push_back({p.x, p.y});
             }
-            res = interpolated_traj;
+
+            for (size_t i = 1; i < res.waypoints.size() - 1; i++) {
+                Coordinate current(res.waypoints[i].pose.x, res.waypoints[i].pose.y);
+                Coordinate prev = Coordinate(old_x, old_y);
+                Coordinate next(res.waypoints[i + 1].pose.x, res.waypoints[i + 1].pose.y);
+
+                adjust_point(current, prev, next, rad);
+                old_x = current.x;
+                old_y = current.y;
+                Pose p = current.tf_pose(resolution, origin);
+                optimized_coords.waypoints.push_back({ p.x, p.y });
+            }
+
+            if (res.waypoints.size() > 1) {
+                Pose p = Coordinate(res.waypoints.back().pose.x, res.waypoints.back().pose.y).tf_pose(resolution, origin);
+                optimized_coords.waypoints.push_back({p.x, p.y});
+            }
+
+            Trajectory interpolated = interpolate_trajectory(optimized_coords);
+
+            Trajectory angle_interpolated = angle_interpolate_trajectory(interpolated);
+
+            return interpolated;
         }
         return res;
     }
@@ -341,9 +363,9 @@ namespace cev_planner::global_planner {
         return cur_this;
     }
 
-    bool RRT::is_surrounded(int x1, int y1) {
-        for (int i = -1; i <= 1; i++) {
-            for (int j = -1; j <= 1; j++) {
+    bool RRT::is_surrounded(int x1, int y1, int radius) {
+        for (int i = -radius; i <= radius; i++) {
+            for (int j = -radius; j <= radius; j++) {
                 if (i == 0 && j == 0) continue;
                 if (is_occupied(x1 + i, y1 + j, true))
                     return true;
@@ -352,12 +374,7 @@ namespace cev_planner::global_planner {
         return false;
     }
 
-    bool RRT::cross_obstacle_points(Coordinate& startPoint, Coordinate& endPoint) {
-        int x1 = startPoint.x;
-        int y1 = startPoint.y;
-        int x2 = endPoint.x;
-        int y2 = endPoint.y;
-
+    bool RRT::cross_obstacle_points(int x1, int y1, int x2, int y2) {
         int dx = abs(x2 - x1);
         int dy = abs(y2 - y1);
         int sx = (x1 < x2) ? 1 : -1;
@@ -374,39 +391,36 @@ namespace cev_planner::global_planner {
             }
     
             int e2 = 2 * err;
-            // bool moved_x = false, moved_y = false;
-    
             if (e2 > -dy) {
                 err -= dy;
                 x1 += sx;
-                // moved_x = true;
             }
     
             if (e2 < dx) {
                 err += dx;
                 y1 += sy;
-                // moved_y = true;
             }
-    
-            // if (moved_x) {
-            //     if (is_occupied(x1, y1+1) || is_occupied(x1, y1-1)) {
-            //         return true;
-            //     }
-            // }
-            // if (moved_y) {
-            //     if (is_occupied(x1 + 1, y1) || is_occupied(x1 - 1, y1)) {
-            //         return true;
-            //     }
-            // }
         }
     
         return false;
     }
 
-    bool RRT::cross_obstacle(int startNode, int endNode, unordered_map<int, RRT::Node>* nodes) {
+    bool RRT::cross_obstacle_nodes(int startNode, int endNode, unordered_map<int, RRT::Node>* nodes) {
         nodes = nodes ?: cur_tree;
         return cross_obstacle_points(nodes->at(startNode).coordinate,
             nodes->at(endNode).coordinate);
+    }
+
+    bool RRT::cross_obstacle_points(Coordinate& startPoint, Coordinate& endPoint) {
+        return cross_obstacle_points(startPoint.x, startPoint.y, endPoint.x, endPoint.y);
+    }
+
+    bool RRT::cross_obstacle_tf_points(int x1, int y1, int x2, int y2) {
+        x1 = std::clamp((int)round((x1 - origin.x) / resolution), 0, mapw - 1);
+        y1 = std::clamp((int)round((y1 - origin.y) / resolution), 0, maph - 1);
+        x2 = std::clamp((int)round((x2 - origin.x) / resolution), 0, mapw - 1);
+        y2 = std::clamp((int)round((y2 - origin.y) / resolution), 0, mapw - 1);
+        return cross_obstacle_points(x1, y1, x2, y2);
     }
 
     bool RRT::is_ancestor(int potential_ancestor, int node, unordered_map<int, RRT::Node>* nodes) {

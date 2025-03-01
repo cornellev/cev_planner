@@ -47,14 +47,10 @@ namespace cev_planner::global_planner {
             goalFlag = false;
             mapw = grid.data.rows();
             maph = grid.data.cols();
-            nodes = {
-                {0, {max(min((int)round((start.pose.x - grid.origin.x) / resolution), mapw - 1), 0),
-                        max(min((int)round((start.pose.y - grid.origin.y) / resolution), maph - 1),
-                            0)}}};
-            goal_nodes = {{0,
-                {max(min((int)round((target.pose.x - grid.origin.x) / resolution), mapw - 1), 0),
-                    max(min((int)round((target.pose.y - grid.origin.y) / resolution), maph - 1),
-                        0)}}};
+            Coordinate p1 = {start.pose, resolution, origin, mapw, maph};
+            Coordinate p2 = {target.pose, resolution, origin, mapw, maph};
+            nodes = {{0, {p1}}};
+            goal_nodes = {{0, {p2}}};
             this->start = nodes[0];
             this->goal = goal_nodes[0];
             startCoordPose = this->start.as_is_pose();
@@ -75,7 +71,7 @@ namespace cev_planner::global_planner {
             path = vector<int>();
             pathCoords = vector<Coordinate>();
             from_goal = false;
-            cache_obstacle_grid(grid);
+            this->grid = &grid;
             double distToGoal = start.pose.distance_to(target.pose);
             bias();
             int iteration = 0;
@@ -116,6 +112,10 @@ namespace cev_planner::global_planner {
         public:
             int x, y;
             Coordinate(int x = 0, int y = 0): x(x), y(y) {}
+            Coordinate(Pose& pose, double resolution, Pose& origin, int mapw, int maph) {
+                x = std::clamp((int)round((pose.x - origin.x) / resolution), 0, mapw - 1);
+                y = std::clamp((int)round((pose.y - origin.y) / resolution), 0, maph - 1);
+            }
             double distance_to(const Coordinate& other) const {
                 return std::hypot(x - other.x, y - other.y);
             }
@@ -194,18 +194,6 @@ namespace cev_planner::global_planner {
         // Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic> obstacle_grid;
         Grid* grid;
 
-        void cache_obstacle_grid(Grid& grid) {
-            this->grid = &grid;
-            // dilate_grid(grid, start, goal, create_circular_structure(0.0), 5.0, 0.7f);
-        }
-
-        void dilate_grid(Grid& grid, const Node& start, const Node& goal,
-            const std::vector<array<int, 2>>& structure = {{0, 1}, {1, 0}, {0, 0}, {-1, 0},
-                {0, -1}},
-            double safe_zone_radius = 5.0, float occupation_threshold = 0.7f);
-
-        vector<array<int, 2>> create_circular_structure(double radius = 3.0);
-
         double calculate_k() {
             double z = num_in_region() - num_max_in_region / 2;
             return 1 / (2 * M_PI) * ((z != 0) ? (z <= 0) * M_PI + atan(1 / z) : M_PI / 2);
@@ -213,6 +201,8 @@ namespace cev_planner::global_planner {
 
         void step(bool bias = false, bool from_goal = false);
 
+        Trajectory interpolate_trajectory(Trajectory& input, double max_dist = 0.5);
+        Trajectory angle_interpolate_trajectory(Trajectory& input);
         Trajectory getPathCoords(bool corrected_tf = false);
 
         Coordinate sample_envir();
@@ -223,13 +213,16 @@ namespace cev_planner::global_planner {
             unordered_map<int, Node>& other_nodes);
 
         bool cross_obstacle_points(Coordinate& startPoint, Coordinate& endPoint);
-
-        bool cross_obstacle(int startNode, int endNode, unordered_map<int, Node>* nodes = nullptr);
+        bool cross_obstacle_nodes(int startNode, int endNode, unordered_map<int, Node>* nodes = nullptr);
+        bool cross_obstacle_points(int x1, int y1, int x2, int y2);
+        bool cross_obstacle_tf_points(int x1, int y1, int x2, int y2);
+        double obstacle_path_cost(int x1, int y1, int x2, int y2, int radius = 1);
 
         bool is_ancestor(int potential_ancestor, int node,
             unordered_map<int, Node>* nodes = nullptr);
 
-        bool is_surrounded(int x1, int y1);
+        bool is_surrounded(int x1, int y1, int radius = 1);
+        void adjust_point(Coordinate& coordinate, Coordinate& prev, Coordinate& next, int radius);
 
         bool is_occupied(Coordinate& coordinate, bool allow_unknown = false) {
             if (coordinate.x < 0 || coordinate.x >= mapw || coordinate.y < 0
