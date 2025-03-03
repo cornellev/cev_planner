@@ -124,6 +124,10 @@ namespace cev_planner::global_planner {
     }
 
     double RRT::obstacle_path_cost(int x1, int y1, int x2, int y2, int radius) {
+        int start_x = x1;
+        int start_y = y1;
+        int end_x = x2;
+        int end_y = y2;
         int dx = abs(x2 - x1);
         int dy = abs(y2 - y1);
         int sx = (x1 < x2) ? 1 : -1;
@@ -137,7 +141,7 @@ namespace cev_planner::global_planner {
                     int x = x1 + i;
                     int y = y1 + j;
                     if (is_occupied(x, y)) {
-                        cost += exp(-0.1 * (i * i + j * j) / (!is_occupied(x,y,true) + 1));
+                        cost += exp(-0.1 * (sqrt(i * i + j * j) + 5* (!is_occupied(x,y,true))) + 0.1 * ((x1==start_x && y1==start_y) || (x2==end_x && y2==end_y)));
                     }
                 }
             }
@@ -161,16 +165,122 @@ namespace cev_planner::global_planner {
         return cost;
     }
 
-    void RRT::adjust_point(Coordinate& coordinate, Coordinate& prev, Coordinate& next, int radius) {
-        double cost = (obstacle_path_cost(coordinate.x, coordinate.y, next.x, next.y, radius) + obstacle_path_cost(coordinate.x, coordinate.y, prev.x, prev.y, radius)) / coordinate.distance_to(next);
-        int best_x = coordinate.x;
-        int best_y = coordinate.y;
+    Trajectory RRT::round_trajectory(Trajectory& input, int radius) {
+        if (input.waypoints.size() < 3) {
+            return input;
+        }
+
+        Trajectory rounded;
+        rounded.waypoints.push_back(input.waypoints[0]);
+
+        int i = 1;
+        while (i < (int)input.waypoints.size() - 1) {
+            Pose prev = input.waypoints[i - 1].pose;
+            Pose curr = input.waypoints[i].pose;
+            Pose next = input.waypoints[i + 1].pose;
+
+            double prev_dx = curr.x - prev.x;
+            double prev_dy = curr.y - prev.y;
+            double next_dx = next.x - curr.x;
+            double next_dy = next.y - curr.y;
+
+            double cross_product = prev_dx * next_dy - prev_dy * next_dx;
+            bool turning_left = (cross_product > 0);
+
+            if (std::fabs(cross_product) > 1e-3) {
+                int left = i - 1;
+                int right = i + 1;
+                double best_cost = normalized_obstacle_path_cost(curr, input.waypoints[left].pose, input.waypoints[right].pose, radius);
+                int best_right = right;
+
+                while (right + 1 < (int)input.waypoints.size()) {
+                    right++;
+                    double shortcut_cost = normalized_obstacle_path_cost(input.waypoints[left].pose, input.waypoints[right].pose, radius);
+
+                    if (shortcut_cost < best_cost) {
+                        best_cost = shortcut_cost;
+                        best_right = right;
+                    } else {
+                        break;
+                    }
+                }
+
+                Pose start = input.waypoints[left].pose;
+                Pose end = input.waypoints[best_right].pose;
+
+                double entry_angle = atan2(curr.y - prev.y, curr.x - prev.x);
+                double exit_angle = atan2(next.y - curr.y, next.x - curr.x);
+                double turn_angle = std::fabs(exit_angle - entry_angle);
+                turn_angle = fmod(turn_angle, M_PI);
+
+                double max_radius = std::min(3.0, std::hypot(curr.x - start.x, curr.y - start.y));
+
+                double control_scale = 0.5;
+                double control_x = curr.x + control_scale * max_radius * cos((entry_angle + exit_angle) / 2);
+                double control_y = curr.y + control_scale * max_radius * sin((entry_angle + exit_angle) / 2);
+
+                int num_points = 5;
+                for (int j = 1; j < num_points; j++) {
+                    double t = (double)j / num_points;
+                    double x = (1 - t) * (1 - t) * start.x + 2 * (1 - t) * t * control_x + t * t * end.x;
+                    double y = (1 - t) * (1 - t) * start.y + 2 * (1 - t) * t * control_y + t * t * end.y;
+                    rounded.waypoints.push_back({x, y});
+                }
+
+                rounded.waypoints.push_back(input.waypoints[best_right]);
+                i = best_right;
+            } else {
+                rounded.waypoints.push_back(input.waypoints[i]);
+            }
+            i++;
+        }
+
+        if (rounded.waypoints.back().pose.x != input.waypoints.back().pose.x ||
+            rounded.waypoints.back().pose.y != input.waypoints.back().pose.y) {
+            rounded.waypoints.push_back(input.waypoints.back());
+        }
+
+        return rounded;
+    }
+    
+
+    double RRT::normalized_obstacle_path_cost(int center_x, int center_y, int x2, int y2, int x3, int y3, int radius) {
+        return (obstacle_path_cost(center_x, center_y, x2, y2, radius) + obstacle_path_cost(center_x, center_y, x3, y3, radius)) * (hypot(center_x - x2, center_y - y2) + hypot(center_x - x3, center_y - y3));
+    }
+
+    double RRT::normalized_obstacle_path_cost(Pose& center, Pose& p2, Pose& p3, int radius) {
+        int center_x = tf_to_coord_horizontal(center.x);
+        int center_y = tf_to_coord_vertical(center.y);
+        int x2 = tf_to_coord_horizontal(p2.x);
+        int y2 = tf_to_coord_vertical(p2.y);
+        int x3 = tf_to_coord_horizontal(p3.x);
+        int y3 = tf_to_coord_vertical(p3.y);
+        return (obstacle_path_cost(center_x, center_y, x2, y2, radius) + obstacle_path_cost(center_x, center_y, x3, y3, radius)) * (hypot(center_x - x2, center_y - y2) + hypot(center_x - x3, center_y - y3));
+    }
+    double RRT::normalized_obstacle_path_cost(Pose& p1, Pose& p2, int radius) {
+        int x1 = tf_to_coord_horizontal(p1.x);
+        int y1 = tf_to_coord_vertical(p1.y);
+        int x2 = tf_to_coord_horizontal(p2.x);
+        int y2 = tf_to_coord_vertical(p2.y);
+        return obstacle_path_cost(x1, y1, x2, y2, radius) * 1.4*hypot(x1 - x2, y1 - y2);
+    }
+
+    void RRT::adjust_point(Pose& current, Pose& prev, Pose& next, int radius) {
+        int starting_coord_x = tf_to_coord_horizontal(current.x); 
+        int best_x = starting_coord_x;
+        int starting_coord_y = tf_to_coord_vertical(current.y);
+        int best_y = starting_coord_y;
+        int next_coord_x = tf_to_coord_horizontal(next.x);
+        int next_coord_y = tf_to_coord_vertical(next.y);
+        int prev_coord_x = tf_to_coord_horizontal(prev.x);
+        int prev_coord_y = tf_to_coord_vertical(prev.y);
+        double cost = normalized_obstacle_path_cost(starting_coord_x, starting_coord_y, prev_coord_x, prev_coord_y, next_coord_x, next_coord_y, radius);
         for (int i = -radius; i <= radius; i++) {
             for (int j = -radius; j <= radius; j++) {
-                int x = coordinate.x + i;
-                int y = coordinate.y + j;
-                if (!(i==0 && j==0) && !is_occupied(x, y) && !cross_obstacle_points(x, y, prev.x, prev.y) && !cross_obstacle_points(x, y, next.x, next.y)) {
-                    double new_cost = log(1+sqrt(i * i + j * j)) * (obstacle_path_cost(x, y, next.x, next.y, radius) + obstacle_path_cost(x, y, prev.x, prev.y, radius)) / coordinate.distance_to(next);
+                int x = starting_coord_x + i;
+                int y =  starting_coord_y + j;
+                if (!(i==0 && j==0) && !is_occupied(x, y) && !cross_obstacle_points(x, y, prev_coord_x, prev_coord_y) && !cross_obstacle_points(x, y, next_coord_x, next_coord_y)) {
+                    double new_cost = normalized_obstacle_path_cost(x, y, next_coord_x, next_coord_y, prev_coord_x, prev_coord_y, radius);
                     if (new_cost < cost) {
                         best_x = x;
                         best_y = y;
@@ -179,8 +289,8 @@ namespace cev_planner::global_planner {
                 }
             }
         }
-        coordinate.x = best_x;
-        coordinate.y = best_y;
+        current.x = coord_to_tf_horizontal(best_x);
+        current.y = coord_to_tf_vertical(best_y);
     }
 
     Trajectory RRT::interpolate_trajectory(Trajectory& input, double max_dist) {
@@ -233,6 +343,28 @@ namespace cev_planner::global_planner {
         return interpolate_trajectory(angle_interpolated);
     }
 
+    Trajectory RRT::apply_obstacle_cost_trajectory(Trajectory& input, double radius) {
+        Trajectory optimized_coords;
+        optimized_coords.waypoints.reserve(input.waypoints.size());
+        Pose prev;
+        if (!input.waypoints.empty()) {
+            prev = input.waypoints.front().pose;
+            optimized_coords.waypoints.push_back({input.waypoints.front().pose.x, input.waypoints.front().pose.y});
+        }
+
+        for (size_t i = 1; i < input.waypoints.size() - 1; i++) {
+            Pose current = input.waypoints[i].pose;
+            adjust_point(current, prev, input.waypoints[i + 1].pose, radius);
+            prev = current;
+            optimized_coords.waypoints.push_back({ current.x, current.y });
+        }
+
+        if (input.waypoints.size() > 1)
+            optimized_coords.waypoints.push_back({input.waypoints.back().pose.x, input.waypoints.back().pose.y});
+
+        return optimized_coords;
+    }
+
     Trajectory RRT::getPathCoords(bool corrected_tf) {
         unordered_map<int, Node>* nodes = from_goal ? &goal_nodes : &this->nodes;
         Trajectory res;
@@ -265,37 +397,20 @@ namespace cev_planner::global_planner {
                 std::reverse(res.waypoints.begin(), res.waypoints.end());
             }
 
-            Trajectory optimized_coords;
-            optimized_coords.waypoints.reserve(res.waypoints.size());
-            int old_x, old_y;
-            int rad = 5;
-            if (!res.waypoints.empty()) {
-                old_x = res.waypoints.front().pose.x;
-                old_y = res.waypoints.front().pose.y;
-                Pose p = Coordinate(res.waypoints.front().pose.x, res.waypoints.front().pose.y).tf_pose(resolution, origin);
-                optimized_coords.waypoints.push_back({p.x, p.y});
+            Trajectory tf_trajectory;
+            for (State state : res.waypoints) {
+                Pose p = Coordinate({int(state.pose.x), int(state.pose.y)}).tf_pose(resolution, origin);
+                tf_trajectory.waypoints.push_back({p.x, p.y});
             }
 
-            for (size_t i = 1; i < res.waypoints.size() - 1; i++) {
-                Coordinate current(res.waypoints[i].pose.x, res.waypoints[i].pose.y);
-                Coordinate prev = Coordinate(old_x, old_y);
-                Coordinate next(res.waypoints[i + 1].pose.x, res.waypoints[i + 1].pose.y);
+            // optimized_coords = apply_obstacle_cost_trajectory(optimized_coords, 2);
+            Trajectory interpolated = apply_obstacle_cost_trajectory(tf_trajectory, 5);
+            interpolated = interpolate_trajectory(tf_trajectory);
 
-                adjust_point(current, prev, next, rad);
-                old_x = current.x;
-                old_y = current.y;
-                Pose p = current.tf_pose(resolution, origin);
-                optimized_coords.waypoints.push_back({ p.x, p.y });
-            }
+            // interpolated = interpolate_trajectory(optimized_coords);
 
-            if (res.waypoints.size() > 1) {
-                Pose p = Coordinate(res.waypoints.back().pose.x, res.waypoints.back().pose.y).tf_pose(resolution, origin);
-                optimized_coords.waypoints.push_back({p.x, p.y});
-            }
-
-            Trajectory interpolated = interpolate_trajectory(optimized_coords);
-
-            Trajectory angle_interpolated = angle_interpolate_trajectory(interpolated);
+            // Trajectory angle_interpolated = angle_interpolate_trajectory(interpolated);
+            interpolated = round_trajectory(interpolated);
 
             return interpolated;
         }
@@ -416,11 +531,7 @@ namespace cev_planner::global_planner {
     }
 
     bool RRT::cross_obstacle_tf_points(int x1, int y1, int x2, int y2) {
-        x1 = std::clamp((int)round((x1 - origin.x) / resolution), 0, mapw - 1);
-        y1 = std::clamp((int)round((y1 - origin.y) / resolution), 0, maph - 1);
-        x2 = std::clamp((int)round((x2 - origin.x) / resolution), 0, mapw - 1);
-        y2 = std::clamp((int)round((y2 - origin.y) / resolution), 0, mapw - 1);
-        return cross_obstacle_points(x1, y1, x2, y2);
+        return cross_obstacle_points(tf_to_coord_horizontal(x1), tf_to_coord_vertical(y1), tf_to_coord_horizontal(x2), tf_to_coord_vertical(y2));
     }
 
     bool RRT::is_ancestor(int potential_ancestor, int node, unordered_map<int, RRT::Node>* nodes) {

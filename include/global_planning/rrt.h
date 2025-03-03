@@ -202,7 +202,9 @@ namespace cev_planner::global_planner {
         void step(bool bias = false, bool from_goal = false);
 
         Trajectory interpolate_trajectory(Trajectory& input, double max_dist = 0.5);
+        Trajectory apply_obstacle_cost_trajectory(Trajectory& input, double radius = 2);
         Trajectory angle_interpolate_trajectory(Trajectory& input);
+        Trajectory round_trajectory(Trajectory& input, int radius=5);
         Trajectory getPathCoords(bool corrected_tf = false);
 
         Coordinate sample_envir();
@@ -217,12 +219,27 @@ namespace cev_planner::global_planner {
         bool cross_obstacle_points(int x1, int y1, int x2, int y2);
         bool cross_obstacle_tf_points(int x1, int y1, int x2, int y2);
         double obstacle_path_cost(int x1, int y1, int x2, int y2, int radius = 1);
+        double normalized_obstacle_path_cost(int center_x, int center_y, int x2, int y2, int x3, int y3, int radius = 1);
+        double normalized_obstacle_path_cost(Pose& center, Pose& p2, Pose& p3, int radius = 1);
+        double normalized_obstacle_path_cost(Pose& p1, Pose& p2, int radius = 1);
 
         bool is_ancestor(int potential_ancestor, int node,
             unordered_map<int, Node>* nodes = nullptr);
 
         bool is_surrounded(int x1, int y1, int radius = 1);
-        void adjust_point(Coordinate& coordinate, Coordinate& prev, Coordinate& next, int radius);
+        void adjust_point(Pose& current, Pose& prev, Pose& next, int radius);
+        double tf_to_coord_horizontal(double x) {
+            return std::clamp((int)round((x - origin.x) / resolution), 0, mapw - 1);
+        }
+        double tf_to_coord_vertical(double y) {
+            return std::clamp((int)round((y - origin.y) / resolution), 0, maph - 1);
+        }
+        double coord_to_tf_horizontal(int x) {
+            return x * resolution + origin.x;
+        }
+        double coord_to_tf_vertical(int y) {
+            return y * resolution + origin.y;
+        }
 
         bool is_occupied(Coordinate& coordinate, bool allow_unknown = false) {
             if (coordinate.x < 0 || coordinate.x >= mapw || coordinate.y < 0
