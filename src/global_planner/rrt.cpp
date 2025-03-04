@@ -123,7 +123,7 @@ namespace cev_planner::global_planner {
         }
     }
 
-    double RRT::obstacle_path_cost(int x1, int y1, int x2, int y2, int radius) {
+    double RRT::obstacle_path_cost(int x1, int y1, int x2, int y2, int radius, bool weight_points) {
         int start_x = x1;
         int start_y = y1;
         int end_x = x2;
@@ -141,7 +141,7 @@ namespace cev_planner::global_planner {
                     int x = x1 + i;
                     int y = y1 + j;
                     if (is_occupied(x, y)) {
-                        cost += exp(-0.1 * (sqrt(i * i + j * j) + 5* (!is_occupied(x,y,true))) + 0.1 * ((x1==start_x && y1==start_y) || (x2==end_x && y2==end_y)));
+                        cost += exp(-0.1 * (sqrt(i * i + j * j) + 5* (weight_points && !is_occupied(x,y,true))) + 0.1 * ((x1==start_x && y1==start_y) || (x2==end_x && y2==end_y)));
                     }
                 }
             }
@@ -255,14 +255,14 @@ namespace cev_planner::global_planner {
         int y2 = tf_to_coord_vertical(p2.y);
         int x3 = tf_to_coord_horizontal(p3.x);
         int y3 = tf_to_coord_vertical(p3.y);
-        return (obstacle_path_cost(center_x, center_y, x2, y2, radius) + obstacle_path_cost(center_x, center_y, x3, y3, radius)) * (hypot(center_x - x2, center_y - y2) + hypot(center_x - x3, center_y - y3));
+        return (obstacle_path_cost(center_x, center_y, x2, y2, radius, false) + obstacle_path_cost(center_x, center_y, x3, y3, radius, false)) * (hypot(center_x - x2, center_y - y2) + hypot(center_x - x3, center_y - y3));
     }
     double RRT::normalized_obstacle_path_cost(Pose& p1, Pose& p2, int radius) {
         int x1 = tf_to_coord_horizontal(p1.x);
         int y1 = tf_to_coord_vertical(p1.y);
         int x2 = tf_to_coord_horizontal(p2.x);
         int y2 = tf_to_coord_vertical(p2.y);
-        return obstacle_path_cost(x1, y1, x2, y2, radius) * 1.4*hypot(x1 - x2, y1 - y2);
+        return obstacle_path_cost(x1, y1, x2, y2, radius, false) * 1.4*hypot(x1 - x2, y1 - y2);
     }
 
     void RRT::adjust_point(Pose& current, Pose& prev, Pose& next, int radius) {

@@ -218,7 +218,7 @@ namespace cev_planner::global_planner {
         bool cross_obstacle_nodes(int startNode, int endNode, unordered_map<int, Node>* nodes = nullptr);
         bool cross_obstacle_points(int x1, int y1, int x2, int y2);
         bool cross_obstacle_tf_points(int x1, int y1, int x2, int y2);
-        double obstacle_path_cost(int x1, int y1, int x2, int y2, int radius = 1);
+        double obstacle_path_cost(int x1, int y1, int x2, int y2, int radius = 1, bool weigh_points = true);
         double normalized_obstacle_path_cost(int center_x, int center_y, int x2, int y2, int x3, int y3, int radius = 1);
         double normalized_obstacle_path_cost(Pose& center, Pose& p2, Pose& p3, int radius = 1);
         double normalized_obstacle_path_cost(Pose& p1, Pose& p2, int radius = 1);
