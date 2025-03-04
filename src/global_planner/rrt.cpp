@@ -123,7 +123,7 @@ namespace cev_planner::global_planner {
         }
     }
 
-    double RRT::obstacle_path_cost(int x1, int y1, int x2, int y2, int radius, bool weigh_points) {
+    double RRT::obstacle_path_cost(int x1, int y1, int x2, int y2, int radius, bool add_weight_endpoints) {
         int start_x = x1;
         int start_y = y1;
         int end_x = x2;
@@ -142,22 +142,14 @@ namespace cev_planner::global_planner {
                     int y = y1 + j;
                     if (is_occupied(x, y)) {
                         double distanceSq = i * i + j * j;
-                        double penalty = 0;
-                        
-                        // High penalty for obstacles within radius 2 (distanceSq <= 4)
-                        if (distanceSq <= 4) {
-                            penalty = 10 / (0.5 + distanceSq);  // Extremely high but still (i, j) dependent
-                        } 
-                        else {
-                            penalty = 1 / (1 + distanceSq);
-                        }
-                        
-                        if (!is_occupied(x, y, true)) {
-                            penalty /= 2;
-                        }
-                        
-                        // Optionally weigh start/end points
-                        if (weigh_points && ((x1 == start_x && y1 == start_y) || (x2 == end_x && y2 == end_y))) {
+                        double penalty = (distanceSq <= 4) 
+                            ? (10 / (0.5 + distanceSq)) 
+                            : (1 / (1 + distanceSq));
+
+                        if (!is_occupied(x, y, true)) penalty *= 0.5;
+
+                        if (add_weight_endpoints && 
+                            ((x1 == start_x && y1 == start_y) || (x2 == end_x && y2 == end_y))) {
                             penalty *= 2;
                         }
                         
@@ -168,14 +160,11 @@ namespace cev_planner::global_planner {
     
             if (x1 == x2 && y1 == y2)
                 break;
-    
             int e2 = 2 * err;
-    
             if (e2 > -dy) {
                 err -= dy;
                 x1 += sx;
             }
-    
             if (e2 < dx) {
                 err += dx;
                 y1 += sy;
@@ -205,7 +194,6 @@ namespace cev_planner::global_planner {
             double next_dy = next.y - curr.y;
 
             double cross_product = prev_dx * next_dy - prev_dy * next_dx;
-            bool turning_left = (cross_product > 0);
 
             if (std::fabs(cross_product) > 1e-3) {
                 int left = i - 1;
@@ -215,7 +203,7 @@ namespace cev_planner::global_planner {
 
                 while (right + 1 < (int)input.waypoints.size()) {
                     right++;
-                    double shortcut_cost = 1.3 * normalized_obstacle_path_cost(input.waypoints[left].pose, input.waypoints[right].pose, radius);
+                    double shortcut_cost = 1.2 * normalized_obstacle_path_cost(input.waypoints[left].pose, input.waypoints[right].pose, radius);
 
                     if (shortcut_cost < best_cost) {
                         best_cost = shortcut_cost;
@@ -230,8 +218,6 @@ namespace cev_planner::global_planner {
 
                 double entry_angle = atan2(curr.y - prev.y, curr.x - prev.x);
                 double exit_angle = atan2(next.y - curr.y, next.x - curr.x);
-                double turn_angle = std::fabs(exit_angle - entry_angle);
-                turn_angle = fmod(turn_angle, M_PI);
 
                 double max_radius = std::min(3.0, std::hypot(curr.x - start.x, curr.y - start.y));
 
@@ -337,33 +323,6 @@ namespace cev_planner::global_planner {
         return interpolated;
     }
 
-    Trajectory RRT::angle_interpolate_trajectory(Trajectory& input) {
-        Trajectory angle_interpolated;
-        angle_interpolated.waypoints.push_back(input.waypoints[0]);
-        int j = 1;
-        while (j < input.waypoints.size() - 1) {
-            double angle;
-            Pose current, next, prev;
-            prev = input.waypoints[j-1].pose;
-            current = input.waypoints[j].pose;
-            angle_interpolated.waypoints.push_back({current.x, current.y});
-            Vector2d v1 = {current.x - prev.x, current.y - prev.y};
-            bool x = false;
-            while (true) {
-                next = input.waypoints[++j].pose;
-                Vector2d v2 = {current.x - next.x, current.y - next.y};
-                double angle = acos(std::clamp(v1.dot(v2) / (v1.norm() * v2.norm()), -1.0, 1.0));
-                if (j == input.waypoints.size() - 1 || angle < 3 || cross_obstacle_tf_points(current.x, current.y, next.x, next.y)) {
-                    break;
-                }
-            }
-        }
-
-        if (j != input.waypoints.size() - 1) angle_interpolated.waypoints.push_back(input.waypoints[j]);
-        angle_interpolated.waypoints.push_back(input.waypoints.back());
-        return interpolate_trajectory(angle_interpolated);
-    }
-
     Trajectory RRT::apply_obstacle_cost_trajectory(Trajectory& input, double radius) {
         Trajectory optimized_coords;
         optimized_coords.waypoints.reserve(input.waypoints.size());
@@ -424,17 +383,13 @@ namespace cev_planner::global_planner {
                 tf_trajectory.waypoints.push_back({p.x, p.y});
             }
 
-            // optimized_coords = apply_obstacle_cost_trajectory(optimized_coords, 2);
             Trajectory interpolated;
             interpolated = apply_obstacle_cost_trajectory(tf_trajectory, 5);
             interpolated = interpolate_trajectory(interpolated);
 
-            // interpolated = interpolate_trajectory(optimized_coords);
-
-            // Trajectory angle_interpolated = angle_interpolate_trajectory(interpolated);
             for (int i = 0; i < 2; i ++)
                 interpolated = round_trajectory(interpolated);
-
+            
             return interpolated;
         }
         return res;
