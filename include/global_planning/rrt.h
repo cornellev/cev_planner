@@ -81,7 +81,7 @@ namespace cev_planner::global_planner {
                 if (iteration % 500 == 0 and goalFlag
                     and (abs(bestCost - distToGoal) < 1
                          or (in_region / log(bestCost + 2)
-                             > min(max(bestCost / 2000 * 75 + 275, 275.0), 375.0))))
+                             > min(max(bestCost / 2000 * 75 + 275, 275.0), 390.0))))
                     break;
 
                 expand();

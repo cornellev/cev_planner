@@ -123,7 +123,7 @@ namespace cev_planner::global_planner {
         }
     }
 
-    double RRT::obstacle_path_cost(int x1, int y1, int x2, int y2, int radius, bool weight_points) {
+    double RRT::obstacle_path_cost(int x1, int y1, int x2, int y2, int radius, bool weigh_points) {
         int start_x = x1;
         int start_y = y1;
         int end_x = x2;
@@ -141,7 +141,27 @@ namespace cev_planner::global_planner {
                     int x = x1 + i;
                     int y = y1 + j;
                     if (is_occupied(x, y)) {
-                        cost += exp(-0.1 * (sqrt(i * i + j * j) + 5* (weight_points && !is_occupied(x,y,true))) + 0.1 * ((x1==start_x && y1==start_y) || (x2==end_x && y2==end_y)));
+                        double distanceSq = i * i + j * j;
+                        double penalty = 0;
+                        
+                        // High penalty for obstacles within radius 2 (distanceSq <= 4)
+                        if (distanceSq <= 4) {
+                            penalty = 10 / (0.5 + distanceSq);  // Extremely high but still (i, j) dependent
+                        } 
+                        else {
+                            penalty = 1 / (1 + distanceSq);
+                        }
+                        
+                        if (!is_occupied(x, y, true)) {
+                            penalty /= 2;
+                        }
+                        
+                        // Optionally weigh start/end points
+                        if (weigh_points && ((x1 == start_x && y1 == start_y) || (x2 == end_x && y2 == end_y))) {
+                            penalty *= 2;
+                        }
+                        
+                        cost += penalty;
                     }
                 }
             }
@@ -195,7 +215,7 @@ namespace cev_planner::global_planner {
 
                 while (right + 1 < (int)input.waypoints.size()) {
                     right++;
-                    double shortcut_cost = normalized_obstacle_path_cost(input.waypoints[left].pose, input.waypoints[right].pose, radius);
+                    double shortcut_cost = 1.3 * normalized_obstacle_path_cost(input.waypoints[left].pose, input.waypoints[right].pose, radius);
 
                     if (shortcut_cost < best_cost) {
                         best_cost = shortcut_cost;
@@ -231,6 +251,7 @@ namespace cev_planner::global_planner {
                 i = best_right;
             } else {
                 rounded.waypoints.push_back(input.waypoints[i]);
+                prev = curr;
             }
             i++;
         }
@@ -262,7 +283,7 @@ namespace cev_planner::global_planner {
         int y1 = tf_to_coord_vertical(p1.y);
         int x2 = tf_to_coord_horizontal(p2.x);
         int y2 = tf_to_coord_vertical(p2.y);
-        return obstacle_path_cost(x1, y1, x2, y2, radius, false) * 1.4*hypot(x1 - x2, y1 - y2);
+        return obstacle_path_cost(x1, y1, x2, y2, radius, false) * hypot(x1 - x2, y1 - y2);
     }
 
     void RRT::adjust_point(Pose& current, Pose& prev, Pose& next, int radius) {
@@ -404,13 +425,15 @@ namespace cev_planner::global_planner {
             }
 
             // optimized_coords = apply_obstacle_cost_trajectory(optimized_coords, 2);
-            Trajectory interpolated = apply_obstacle_cost_trajectory(tf_trajectory, 5);
-            interpolated = interpolate_trajectory(tf_trajectory);
+            Trajectory interpolated;
+            interpolated = apply_obstacle_cost_trajectory(tf_trajectory, 5);
+            interpolated = interpolate_trajectory(interpolated);
 
             // interpolated = interpolate_trajectory(optimized_coords);
 
             // Trajectory angle_interpolated = angle_interpolate_trajectory(interpolated);
-            interpolated = round_trajectory(interpolated);
+            for (int i = 0; i < 2; i ++)
+                interpolated = round_trajectory(interpolated);
 
             return interpolated;
         }
