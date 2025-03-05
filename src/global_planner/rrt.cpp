@@ -402,7 +402,7 @@ namespace cev_planner::global_planner {
         bool keep_high_curve = (curvature_max > 1.0 / epsilon);
     
         if (!keep_max_dist && !keep_high_curve) {
-            if (cross_obstacle_tf_points(A.x, A.y, B.x, B.y, false)) {
+            if (cross_obstacle_tf_points(A.x, A.y, B.x, B.y, true)) {
                 size_t split_index = start + (end - start) / 2;
                 keep[split_index] = true;
                 rdp_simplify(start, split_index, input, epsilon, curvatures, keep);
