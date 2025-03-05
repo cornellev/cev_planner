@@ -331,7 +331,7 @@ namespace cev_planner::global_planner {
         return interpolated;
     }
 
-    Trajectory RRT::reverse_interpolate_trajectory(Trajectory& input, double radius) {
+    Trajectory RRT::reverse_interpolate_trajectory(Trajectory& input) {
         Trajectory simplified;
         if (input.waypoints.empty()) return simplified;
     
@@ -488,7 +488,8 @@ namespace cev_planner::global_planner {
             // for (int i = 0; i < 3; i ++)
             // interpolated = reverse_interpolate_trajectory(interpolated, 0.6);
             // interpolated = interpolate_trajectory(interpolated, 1.5);
-            interpolated = reverse_interpolate_trajectory(interpolated, 0.5);
+            interpolated = reverse_interpolate_trajectory(interpolated);
+            interpolated = reverse_interpolate_trajectory(interpolated);
             interpolated = interpolate_trajectory(interpolated, 1.5);
             // interpolated = reverse_interpolate_trajectory(interpolated, 1);
             // for (int i = 0; i < 2; i ++)
