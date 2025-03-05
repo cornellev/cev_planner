@@ -328,17 +328,24 @@ namespace cev_planner::global_planner {
         interpolated.waypoints.push_back(input.waypoints[0]);
         
         double accumulated_dist = 0.0;
-        for (int i = 0; i < input.waypoints.size() - 1; i++) {
+        // bool add = true;
+        // for (int i = 0; i < input.waypoints.size() - 1; i++) {
+        for (int i = 1; i < input.waypoints.size() - 1; i++) {
             double dx = input.waypoints[i + 1].pose.x - input.waypoints[i].pose.x;
             double dy = input.waypoints[i + 1].pose.y - input.waypoints[i].pose.y;
             double dist = sqrt(dx * dx + dy * dy);
             
-            accumulated_dist += dist;
-            
-            if (accumulated_dist >= radius) {
-                interpolated.waypoints.push_back(input.waypoints[i + 1]);
-                accumulated_dist = 0.0;
+            interpolated.waypoints.push_back(input.waypoints[i]);
+            if (dist <= radius) {
+                i++;
             }
+            
+            // accumulated_dist += dist;
+            
+            // if (accumulated_dist >= radius) {
+            //     interpolated.waypoints.push_back(input.waypoints[i + 1]);
+            //     accumulated_dist = 0.0;
+            // }
         }
         
         if (interpolated.waypoints.back().pose.x != input.waypoints.back().pose.x ||
@@ -417,7 +424,13 @@ namespace cev_planner::global_planner {
             for (int i = 0; i < 2; i ++)
                 interpolated = round_trajectory(interpolated);
 
-            interpolated = reverse_interpolate_trajectory(interpolated);
+            for (int i = 0; i < 3; i ++)
+                interpolated = reverse_interpolate_trajectory(interpolated, 0.75);
+            // interpolated = reverse_interpolate_trajectory(interpolated, 0.5);
+            // interpolated = reverse_interpolate_trajectory(interpolated, 1);
+            // for (int i = 0; i < 2; i ++)
+            //     interpolated = reverse_interpolate_trajectory(interpolated);
+            // interpolated = reverse_interpolate_trajectory(interpolated, 0.3);
             
             return interpolated;
         }
