@@ -206,6 +206,8 @@ namespace cev_planner::global_planner {
         Trajectory round_trajectory(Trajectory& input, int radius=5);
         Trajectory getPathCoords(bool corrected_tf = false);
         Trajectory reverse_interpolate_trajectory(Trajectory& input, double radius = 1);
+        void rdp_simplify(size_t start, size_t end, Trajectory& input, double epsilon,
+            const std::vector<double>& curvatures, std::vector<bool>& keep);
 
         Coordinate sample_envir();
 
@@ -216,8 +218,8 @@ namespace cev_planner::global_planner {
 
         bool cross_obstacle_points(Coordinate& startPoint, Coordinate& endPoint);
         bool cross_obstacle_nodes(int startNode, int endNode, unordered_map<int, Node>* nodes = nullptr);
-        bool cross_obstacle_points(int x1, int y1, int x2, int y2);
-        bool cross_obstacle_tf_points(int x1, int y1, int x2, int y2);
+        bool cross_obstacle_points(int x1, int y1, int x2, int y2, bool check_surrounded = true);
+        bool cross_obstacle_tf_points(double x1, double y1, double x2, double y2, bool check_surrounded = true);
         double obstacle_path_cost(int x1, int y1, int x2, int y2, int radius = 1, bool add_weight_endpoints = true);
         double normalized_obstacle_path_cost(int center_x, int center_y, int x2, int y2, int x3, int y3, int radius = 1);
         double normalized_obstacle_path_cost(Pose& center, Pose& p2, Pose& p3, int radius = 1);

@@ -178,33 +178,33 @@ namespace cev_planner::global_planner {
         if (input.waypoints.size() < 3) {
             return input;
         }
-
+    
         Trajectory rounded;
         rounded.waypoints.push_back(input.waypoints[0]);
-
+    
         int i = 1;
         while (i < (int)input.waypoints.size() - 1) {
             Pose prev = input.waypoints[i - 1].pose;
             Pose curr = input.waypoints[i].pose;
             Pose next = input.waypoints[i + 1].pose;
-
+    
             double prev_dx = curr.x - prev.x;
             double prev_dy = curr.y - prev.y;
             double next_dx = next.x - curr.x;
             double next_dy = next.y - curr.y;
-
+    
             double cross_product = prev_dx * next_dy - prev_dy * next_dx;
-
+    
             if (std::fabs(cross_product) > 1e-3) {
                 int left = i - 1;
                 int right = i + 1;
                 double best_cost = normalized_obstacle_path_cost(curr, input.waypoints[left].pose, input.waypoints[right].pose, radius);
                 int best_right = right;
-
+    
                 while (right + 1 < (int)input.waypoints.size()) {
                     right++;
                     double shortcut_cost = 1.2 * normalized_obstacle_path_cost(input.waypoints[left].pose, input.waypoints[right].pose, radius);
-
+    
                     if (shortcut_cost < best_cost) {
                         best_cost = shortcut_cost;
                         best_right = right;
@@ -212,41 +212,49 @@ namespace cev_planner::global_planner {
                         break;
                     }
                 }
-
+    
                 Pose start = input.waypoints[left].pose;
                 Pose end = input.waypoints[best_right].pose;
-
+    
                 double entry_angle = atan2(curr.y - prev.y, curr.x - prev.x);
                 double exit_angle = atan2(next.y - curr.y, next.x - curr.x);
-
+    
                 double max_radius = std::min(3.0, std::hypot(curr.x - start.x, curr.y - start.y));
+                
+                // double control_scale = 0.5;
+                // double control_x = curr.x + control_scale * max_radius * cos((entry_angle + exit_angle) / 2);
+                // double control_y = curr.y + control_scale * max_radius * sin((entry_angle + exit_angle) / 2);
 
+                // int num_points = 5;
+                // for (int j = 1; j < num_points; j++) {
+                //     double t = (double)j / num_points;
+                //     double x = (1 - t) * (1 - t) * start.x + 2 * (1 - t) * t * control_x + t * t * end.x;
+                //     double y = (1 - t) * (1 - t) * start.y + 2 * (1 - t) * t * control_y + t * t * end.y;
+                //     rounded.waypoints.push_back({x, y});
+                // }
+    
                 double control_scale = 0.5;
                 double control_x = curr.x + control_scale * max_radius * cos((entry_angle + exit_angle) / 2);
                 double control_y = curr.y + control_scale * max_radius * sin((entry_angle + exit_angle) / 2);
-
-                int num_points = 5;
-                for (int j = 1; j < num_points; j++) {
-                    double t = (double)j / num_points;
-                    double x = (1 - t) * (1 - t) * start.x + 2 * (1 - t) * t * control_x + t * t * end.x;
-                    double y = (1 - t) * (1 - t) * start.y + 2 * (1 - t) * t * control_y + t * t * end.y;
-                    rounded.waypoints.push_back({x, y});
-                }
-
+    
+                double t = 0.5;
+                double best_x = (1 - t) * (1 - t) * start.x + 2 * (1 - t) * t * control_x + t * t * end.x;
+                double best_y = (1 - t) * (1 - t) * start.y + 2 * (1 - t) * t * control_y + t * t * end.y;
+                rounded.waypoints.push_back({best_x, best_y});
+    
                 rounded.waypoints.push_back(input.waypoints[best_right]);
                 i = best_right;
             } else {
                 rounded.waypoints.push_back(input.waypoints[i]);
-                prev = curr;
             }
             i++;
         }
-
+    
         if (rounded.waypoints.back().pose.x != input.waypoints.back().pose.x ||
             rounded.waypoints.back().pose.y != input.waypoints.back().pose.y) {
             rounded.waypoints.push_back(input.waypoints.back());
         }
-
+    
         return rounded;
     }
     
@@ -324,54 +332,89 @@ namespace cev_planner::global_planner {
     }
 
     Trajectory RRT::reverse_interpolate_trajectory(Trajectory& input, double radius) {
-        Trajectory interpolated;
-        interpolated.waypoints.push_back(input.waypoints[0]);
-        
-        double accumulated_dist = 0.0;
-        // bool add = true;
-        for (int i = 0; i < input.waypoints.size() - 1; i++) {
-        // for (int i = 1; i < input.waypoints.size() - 1; i++) {
-            double dx = input.waypoints[i + 1].pose.x - input.waypoints[i].pose.x;
-            double dy = input.waypoints[i + 1].pose.y - input.waypoints[i].pose.y;
-            double dist = sqrt(dx * dx + dy * dy);
-            
-            // interpolated.waypoints.push_back(input.waypoints[i]);
-            // if (dist <= radius) {
-            //     i++;
-            // }
-            
-            accumulated_dist += dist;
-            
-            if (accumulated_dist >= radius) {
-                interpolated.waypoints.push_back(input.waypoints[i + 1]);
-                accumulated_dist = 0.0;
+        Trajectory simplified;
+        if (input.waypoints.empty()) return simplified;
+    
+        std::vector<double> curvatures(input.waypoints.size(), 0.0);
+        for (size_t i = 1; i < input.waypoints.size() - 1; ++i) {
+            Pose prev = input.waypoints[i-1].pose;
+            Pose curr = input.waypoints[i].pose;
+            Pose next = input.waypoints[i+1].pose;
+    
+            double dx_prev = curr.x - prev.x;
+            double dy_prev = curr.y - prev.y;
+            double dx_next = next.x - curr.x;
+            double dy_next = next.y - curr.y;
+    
+            double mag_prev = std::hypot(dx_prev, dy_prev);
+            double mag_next = std::hypot(dx_next, dy_next);
+    
+            if (mag_prev < 1e-6 || mag_next < 1e-6) continue;
+    
+            double cross = dx_prev * dy_next - dy_prev * dx_next;
+            double dot = dx_prev * dx_next + dy_prev * dy_next;
+            double delta_theta = std::abs(std::atan2(cross, dot));
+            curvatures[i] = delta_theta / ((mag_prev + mag_next) / 2.0);
+        }
+    
+        std::vector<bool> keep(input.waypoints.size(), false);
+        keep[0] = keep.back() = true;
+        rdp_simplify(0, input.waypoints.size()-1, input, 4.0, curvatures, keep);
+    
+        for (size_t i = 0; i < input.waypoints.size(); ++i) {
+            if (keep[i]) simplified.waypoints.push_back(input.waypoints[i]);
+        }
+    
+        return simplified;
+    }
+    
+    void RRT::rdp_simplify(size_t start, size_t end, Trajectory& input, double epsilon,
+                             const std::vector<double>& curvatures, std::vector<bool>& keep) {
+        if (end <= start + 1) return;
+    
+        const Pose& A = input.waypoints[start].pose;
+        const Pose& B = input.waypoints[end].pose;
+    
+        double a = B.y - A.y;
+        double b = A.x - B.x;
+        double c = B.x * A.y - A.x * B.y;
+        double norm = std::hypot(a, b);
+    
+        double max_dist = -1.0;
+        size_t max_index = start;
+        double curvature_max = 0.0;
+        size_t curve_index = start;
+    
+        for (size_t i = start + 1; i < end; ++i) {
+            const Pose& P = input.waypoints[i].pose;
+            double dist = std::abs(a * P.x + b * P.y + c) / norm;
+            if (dist > max_dist) {
+                max_dist = dist;
+                max_index = i;
+            }
+            if (curvatures[i] > curvature_max) {
+                curvature_max = curvatures[i];
+                curve_index = i;
             }
         }
-        
-        if (interpolated.waypoints.back().pose.x != input.waypoints.back().pose.x ||
-            interpolated.waypoints.back().pose.y != input.waypoints.back().pose.y) {
-            interpolated.waypoints.push_back(input.waypoints.back());
-        }
-
-        Trajectory straight_intermediate_points_removed;
-        straight_intermediate_points_removed.waypoints.push_back(interpolated.waypoints[0]);
-
-        for (int i = 1; i < interpolated.waypoints.size() - 1; i++) {
-            double prev_dx = interpolated.waypoints[i].pose.x - interpolated.waypoints[i - 1].pose.x;
-            double prev_dy = interpolated.waypoints[i].pose.y - interpolated.waypoints[i - 1].pose.y;
-            double next_dx = interpolated.waypoints[i + 1].pose.x - interpolated.waypoints[i].pose.x;
-            double next_dy = interpolated.waypoints[i + 1].pose.y - interpolated.waypoints[i].pose.y;
-
-            double cross_product = prev_dx * next_dy - prev_dy * next_dx;
-
-            if (std::fabs(cross_product) > 1e-3) {
-                straight_intermediate_points_removed.waypoints.push_back(interpolated.waypoints[i]);
+    
+        bool keep_max_dist = (max_dist > epsilon);
+        bool keep_high_curve = (curvature_max > 1.0 / epsilon);
+    
+        if (!keep_max_dist && !keep_high_curve) {
+            if (cross_obstacle_tf_points(A.x, A.y, B.x, B.y, false)) {
+                size_t split_index = start + (end - start) / 2;
+                keep[split_index] = true;
+                rdp_simplify(start, split_index, input, epsilon, curvatures, keep);
+                rdp_simplify(split_index, end, input, epsilon, curvatures, keep);
             }
+            return;
         }
-
-        straight_intermediate_points_removed.waypoints.push_back(interpolated.waypoints.back());
-        
-        return straight_intermediate_points_removed;
+    
+        size_t split_index = keep_max_dist ? max_index : curve_index;
+        keep[split_index] = true;
+        rdp_simplify(start, split_index, input, epsilon, curvatures, keep);
+        rdp_simplify(split_index, end, input, epsilon, curvatures, keep);
     }
     
 
@@ -443,9 +486,10 @@ namespace cev_planner::global_planner {
                 interpolated = round_trajectory(interpolated);
 
             // for (int i = 0; i < 3; i ++)
-            interpolated = reverse_interpolate_trajectory(interpolated, 0.6);
+            // interpolated = reverse_interpolate_trajectory(interpolated, 0.6);
+            // interpolated = interpolate_trajectory(interpolated, 1.5);
+            interpolated = reverse_interpolate_trajectory(interpolated, 0.5);
             interpolated = interpolate_trajectory(interpolated, 1.5);
-            // interpolated = reverse_interpolate_trajectory(interpolated, 0.5);
             // interpolated = reverse_interpolate_trajectory(interpolated, 1);
             // for (int i = 0; i < 2; i ++)
             //     interpolated = reverse_interpolate_trajectory(interpolated);
@@ -528,7 +572,7 @@ namespace cev_planner::global_planner {
         return false;
     }
 
-    bool RRT::cross_obstacle_points(int x1, int y1, int x2, int y2) {
+    bool RRT::cross_obstacle_points(int x1, int y1, int x2, int y2, bool check_surroundings) {
         int dx = abs(x2 - x1);
         int dy = abs(y2 - y1);
         int sx = (x1 < x2) ? 1 : -1;
@@ -536,7 +580,7 @@ namespace cev_planner::global_planner {
         int err = dx - dy;
 
         while (true) {
-            if (is_occupied(x1, y1) || is_surrounded(x1, y1)) {
+            if (is_occupied(x1, y1) || (check_surroundings && is_surrounded(x1, y1))) {
                 return true;
             }
     
@@ -569,9 +613,10 @@ namespace cev_planner::global_planner {
         return cross_obstacle_points(startPoint.x, startPoint.y, endPoint.x, endPoint.y);
     }
 
-    bool RRT::cross_obstacle_tf_points(int x1, int y1, int x2, int y2) {
-        return cross_obstacle_points(tf_to_coord_horizontal(x1), tf_to_coord_vertical(y1), tf_to_coord_horizontal(x2), tf_to_coord_vertical(y2));
+    bool RRT::cross_obstacle_tf_points(double x1, double y1, double x2, double y2, bool check_surrounded) {
+        return cross_obstacle_points(tf_to_coord_horizontal(x1), tf_to_coord_vertical(y1), tf_to_coord_horizontal(x2), tf_to_coord_vertical(y2), check_surrounded);
     }
+
 
     bool RRT::is_ancestor(int potential_ancestor, int node, unordered_map<int, RRT::Node>* nodes) {
         nodes = nodes ?: cur_tree;
