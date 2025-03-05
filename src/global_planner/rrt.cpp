@@ -323,6 +323,33 @@ namespace cev_planner::global_planner {
         return interpolated;
     }
 
+    Trajectory RRT::reverse_interpolate_trajectory(Trajectory& input, double radius) {
+        Trajectory interpolated;
+        interpolated.waypoints.push_back(input.waypoints[0]);
+        
+        double accumulated_dist = 0.0;
+        for (int i = 0; i < input.waypoints.size() - 1; i++) {
+            double dx = input.waypoints[i + 1].pose.x - input.waypoints[i].pose.x;
+            double dy = input.waypoints[i + 1].pose.y - input.waypoints[i].pose.y;
+            double dist = sqrt(dx * dx + dy * dy);
+            
+            accumulated_dist += dist;
+            
+            if (accumulated_dist >= radius) {
+                interpolated.waypoints.push_back(input.waypoints[i + 1]);
+                accumulated_dist = 0.0;
+            }
+        }
+        
+        if (interpolated.waypoints.back().pose.x != input.waypoints.back().pose.x ||
+            interpolated.waypoints.back().pose.y != input.waypoints.back().pose.y) {
+            interpolated.waypoints.push_back(input.waypoints.back());
+        }
+        
+        return interpolated;
+    }
+    
+
     Trajectory RRT::apply_obstacle_cost_trajectory(Trajectory& input, double radius) {
         Trajectory optimized_coords;
         optimized_coords.waypoints.reserve(input.waypoints.size());
@@ -389,6 +416,8 @@ namespace cev_planner::global_planner {
 
             for (int i = 0; i < 2; i ++)
                 interpolated = round_trajectory(interpolated);
+
+            interpolated = reverse_interpolate_trajectory(interpolated);
             
             return interpolated;
         }

@@ -205,6 +205,7 @@ namespace cev_planner::global_planner {
         Trajectory apply_obstacle_cost_trajectory(Trajectory& input, double radius = 2);
         Trajectory round_trajectory(Trajectory& input, int radius=5);
         Trajectory getPathCoords(bool corrected_tf = false);
+        Trajectory reverse_interpolate_trajectory(Trajectory& input, double radius = 0.3);
 
         Coordinate sample_envir();
 
