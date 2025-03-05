@@ -329,31 +329,49 @@ namespace cev_planner::global_planner {
         
         double accumulated_dist = 0.0;
         // bool add = true;
-        // for (int i = 0; i < input.waypoints.size() - 1; i++) {
-        for (int i = 1; i < input.waypoints.size() - 1; i++) {
+        for (int i = 0; i < input.waypoints.size() - 1; i++) {
+        // for (int i = 1; i < input.waypoints.size() - 1; i++) {
             double dx = input.waypoints[i + 1].pose.x - input.waypoints[i].pose.x;
             double dy = input.waypoints[i + 1].pose.y - input.waypoints[i].pose.y;
             double dist = sqrt(dx * dx + dy * dy);
             
-            interpolated.waypoints.push_back(input.waypoints[i]);
-            if (dist <= radius) {
-                i++;
-            }
-            
-            // accumulated_dist += dist;
-            
-            // if (accumulated_dist >= radius) {
-            //     interpolated.waypoints.push_back(input.waypoints[i + 1]);
-            //     accumulated_dist = 0.0;
+            // interpolated.waypoints.push_back(input.waypoints[i]);
+            // if (dist <= radius) {
+            //     i++;
             // }
+            
+            accumulated_dist += dist;
+            
+            if (accumulated_dist >= radius) {
+                interpolated.waypoints.push_back(input.waypoints[i + 1]);
+                accumulated_dist = 0.0;
+            }
         }
         
         if (interpolated.waypoints.back().pose.x != input.waypoints.back().pose.x ||
             interpolated.waypoints.back().pose.y != input.waypoints.back().pose.y) {
             interpolated.waypoints.push_back(input.waypoints.back());
         }
+
+        Trajectory straight_intermediate_points_removed;
+        straight_intermediate_points_removed.waypoints.push_back(interpolated.waypoints[0]);
+
+        for (int i = 1; i < interpolated.waypoints.size() - 1; i++) {
+            double prev_dx = interpolated.waypoints[i].pose.x - interpolated.waypoints[i - 1].pose.x;
+            double prev_dy = interpolated.waypoints[i].pose.y - interpolated.waypoints[i - 1].pose.y;
+            double next_dx = interpolated.waypoints[i + 1].pose.x - interpolated.waypoints[i].pose.x;
+            double next_dy = interpolated.waypoints[i + 1].pose.y - interpolated.waypoints[i].pose.y;
+
+            double cross_product = prev_dx * next_dy - prev_dy * next_dx;
+
+            if (std::fabs(cross_product) > 1e-3) {
+                straight_intermediate_points_removed.waypoints.push_back(interpolated.waypoints[i]);
+            }
+        }
+
+        straight_intermediate_points_removed.waypoints.push_back(interpolated.waypoints.back());
         
-        return interpolated;
+        return straight_intermediate_points_removed;
     }
     
 
@@ -424,8 +442,9 @@ namespace cev_planner::global_planner {
             for (int i = 0; i < 2; i ++)
                 interpolated = round_trajectory(interpolated);
 
-            for (int i = 0; i < 3; i ++)
-                interpolated = reverse_interpolate_trajectory(interpolated, 0.75);
+            // for (int i = 0; i < 3; i ++)
+            interpolated = reverse_interpolate_trajectory(interpolated, 0.6);
+            interpolated = interpolate_trajectory(interpolated, 1.5);
             // interpolated = reverse_interpolate_trajectory(interpolated, 0.5);
             // interpolated = reverse_interpolate_trajectory(interpolated, 1);
             // for (int i = 0; i < 2; i ++)
