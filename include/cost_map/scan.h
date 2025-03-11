@@ -27,6 +27,8 @@ namespace cev_planner::cost_map {
          */
         ScanCostMap(Grid cost_map, Eigen::VectorXf kernel, int store_radius, Pose cache_origin);
         double cost(State state) override;
+
+        double debug_(int i, int j) override;
     };
 
     /**

@@ -308,8 +308,8 @@ namespace cev_planner::local_planner {
     }
 
     Trajectory MPC::calculate_trajectory(Trajectory initial_guess) {
-        std::vector<double> x = this->initial_guess();
-        // std::vector<double> x = {};
+        // std::vector<double> x = this->initial_guess();
+        std::vector<double> x = {};
 
         // x.push_back(dt);
 
@@ -324,11 +324,11 @@ namespace cev_planner::local_planner {
         //     x.push_back(.1);
         // }
 
-        // // Fill the rest with 0s
-        // for (int i = 0; i < num_inputs; i++) {
-        //     x.push_back(0);
-        //     x.push_back(0);
-        // }
+        // Fill the rest with 0s
+        for (int i = 0; i < num_inputs; i++) {
+            x.push_back(0);
+            x.push_back(0);
+        }
 
         // for (int i = 1; i < initial_guess.waypoints.size(); i++) {
         //     int index = (i - 1) * 2;

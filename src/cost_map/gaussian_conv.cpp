@@ -17,6 +17,10 @@ namespace cev_planner::cost_map {
         return cost_map.data(x, y);
     }
 
+    double GaussianCostMap::debug_(int i, int j) {
+        return cost_map.data(i, j);
+    }
+
     Eigen::VectorXf GaussianConvolution::gen_kernel(int search_radius, float sigma) {
         int kernel_size = 2 * search_radius + 1;
         Eigen::VectorXf kernel(kernel_size);

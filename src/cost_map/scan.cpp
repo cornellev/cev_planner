@@ -28,6 +28,10 @@ namespace cev_planner::cost_map {
         return cost_map.data(x, y);
     }
 
+    double ScanCostMap::debug_(int i, int j) {
+        return cost_map.data(i, j);
+    }
+
     // double ScanCostMap::cost(State state) {
     //     // Convert the state to grid coordinates
     //     int x = (state.pose.x - cache.origin.x) / cache.resolution;
@@ -91,22 +95,22 @@ namespace cev_planner::cost_map {
 
         // Iterate through the scan, using the scan origin, scan resolution, and map
         // resolution, to overlay the scan on the map with scan_weight
-        // for (int i = 0; i < scan->data.rows(); ++i) {
-        //     for (int j = 0; j < scan->data.cols(); ++j) {
-        //         if (scan->data(i, j) > 0.0) {
-        //             int x = (scan->origin.x + i * scan->resolution - grid.origin.x)
-        //                     / grid.resolution;
-        //             int y = (scan->origin.y + j * scan->resolution - grid.origin.y)
-        //                     / grid.resolution;
+        for (int i = 0; i < scan->data.rows(); ++i) {
+            for (int j = 0; j < scan->data.cols(); ++j) {
+                if (scan->data(i, j) > 0.0) {
+                    int x = (scan->origin.x + i * scan->resolution - grid.origin.x)
+                            / grid.resolution;
+                    int y = (scan->origin.y + j * scan->resolution - grid.origin.y)
+                            / grid.resolution;
 
-        //             if (x >= 0 && x < grid.data.rows() && y >= 0 && y < grid.data.cols()) {
-        //                 // std::cout << x << ", " << y << std::endl;
-        //                 // std::cout << scan_weight << std::endl;
-        //                 grid.data(x, y) = scan_weight;
-        //             }
-        //         }
-        //     }
-        // }
+                    if (x >= 0 && x < grid.data.rows() && y >= 0 && y < grid.data.cols()) {
+                        // std::cout << x << ", " << y << std::endl;
+                        // std::cout << scan_weight << std::endl;
+                        grid.data(x, y) = scan_weight;
+                    }
+                }
+            }
+        }
 
         // Convolution along rows
         Eigen::MatrixXf row_conv = Eigen::MatrixXf::Zero(grid.data.rows(), grid.data.cols());

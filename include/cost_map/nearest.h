@@ -18,6 +18,8 @@ namespace cev_planner::cost_map {
     public:
         NearestCostMap(Grid cost_map): cost_map(cost_map) {}
         double cost(State state) override;
+
+        double debug_(int i, int j) override;
     };
 
     class NearestGenerator : public CostMapGenerator {

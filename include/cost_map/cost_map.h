@@ -14,6 +14,7 @@ namespace cev_planner::cost_map {
     class CostMap {
     public:
         virtual double cost(State state) = 0;
+        virtual double debug_(int i, int j) = 0;
     };
 
     /**

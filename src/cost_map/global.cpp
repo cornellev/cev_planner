@@ -17,6 +17,10 @@ namespace cev_planner::cost_map {
         return cost_map.data(x, y);
     }
 
+    double GlobalCostMap::debug_(int i, int j) {
+        return cost_map.data(i, j);
+    }
+
     std::shared_ptr<CostMap> GlobalCostMapGenerator::generate_cost_map(Grid grid, Grid* scan) {
         // Convolution along rows
         Eigen::MatrixXf cost_map = Eigen::MatrixXf::Zero(grid.data.rows(), grid.data.cols());

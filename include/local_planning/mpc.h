@@ -54,7 +54,7 @@ namespace cev_planner::local_planner {
                 initial_step.push_back(0);
             }
 
-            opt.set_default_initial_step(initial_step);
+            // opt.set_default_initial_step(initial_step);
         }
 
         std::vector<double> initial_guess();
