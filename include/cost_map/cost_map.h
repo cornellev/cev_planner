@@ -27,7 +27,7 @@ namespace cev_planner::cost_map {
          */
         CostMapGenerator() {}
 
-        virtual std::shared_ptr<CostMap> generate_cost_map(Grid grid) = 0;
+        virtual std::shared_ptr<CostMap> generate_cost_map(Grid grid, Grid* scan = nullptr) = 0;
     };
 
 }  // namespace cev_planner::cost_map

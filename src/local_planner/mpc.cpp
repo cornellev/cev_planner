@@ -137,7 +137,7 @@ namespace cev_planner::local_planner {
         // }
 
         std::vector<State> path = this->decompose(*this->temp_start, x, this->dt);
-        return 8 * path_obs_cost(path) + 5 * path_waypoints_cost(path);
+        return 8 * path_obs_cost(path) + 7 * path_waypoints_cost(path);
     }
 
     double MPC::objective_function(const std::vector<double>& x, std::vector<double>& grad,
@@ -149,7 +149,10 @@ namespace cev_planner::local_planner {
 
     void MPC::optimize_iter(nlopt::opt& opt, std::vector<double>& x) {
         double minf;
-        opt.optimize(x, minf);
+        auto res = opt.optimize(x, minf);
+
+        std::cout << "Optimization result: " << res << std::endl;
+        std::cout << "Minimum cost: " << minf << std::endl;
     }
 
     // Trajectory MPC::calculate_trajectory() {
@@ -250,20 +253,82 @@ namespace cev_planner::local_planner {
     //     return trajectory;
     // }
 
-    Trajectory MPC::calculate_trajectory(Trajectory initial_guess) {
-        std::vector<double> x;
+    std::vector<double> MPC::initial_guess() {
+        std::vector<double> x = {};
+        x.push_back(.1);
 
-        // x.push_back(dt);
+        // Create an initial guess targeting the next waypoint with a constant velocity and steering
+        // rate
+        auto target = waypoints.waypoints[0];
 
-        temp_start = std::make_unique<State>(start);
+        // Find angle to target
+        double angle = atan2(target.pose.y - start.pose.y, target.pose.x - start.pose.x);
+        double angle_diff = angle - start.pose.theta;
 
-        // Fill initial guess
+        // Normalize angle_diff
+        if (angle_diff > M_PI) {
+            angle_diff -= 2 * M_PI;
+        } else if (angle_diff < -M_PI) {
+            angle_diff += 2 * M_PI;
+        }
 
-        // Fill with 0s
-        for (int i = 0; i < num_inputs; i++) {
+        if (angle_diff > constraints.tau[1]) {
+            angle_diff = constraints.tau[1];
+        } else if (angle_diff < constraints.tau[0]) {
+            angle_diff = constraints.tau[0];
+        }
+
+        if (angle_diff > constraints.dtau[1]) {
+            x.push_back(constraints.dtau[1]);
+            x.push_back(.1);
+            angle_diff = angle_diff - constraints.dtau[1];
+        } else if (angle_diff < constraints.dtau[0]) {
+            x.push_back(constraints.dtau[0]);
+            x.push_back(.1);
+            angle_diff = angle_diff - constraints.dtau[0];
+        }
+
+        x.push_back(angle_diff);
+
+        // Fill the rest with 0s
+        for (int i = x.size() / 2; i < num_inputs; i++) {
             x.push_back(0);
             x.push_back(0);
         }
+
+        // std::cout << "Initial guess: " << std::endl;
+        // for (int i = 0; i < x.size(); i++) {
+        //     std::cout << x[i] << " ";
+        // }
+        // std::cout << std::endl;
+
+        // std::cout << "Guess size: " << x.size() << std::endl;
+
+        return x;
+    }
+
+    Trajectory MPC::calculate_trajectory(Trajectory initial_guess) {
+        std::vector<double> x = this->initial_guess();
+        // std::vector<double> x = {};
+
+        // x.push_back(dt);
+
+        // start.vel = 0;
+        temp_start = std::make_unique<State>(start);
+
+        // Fill initial guess
+        // for (int i = 0; i < 2; i++) {
+        //     x.push_back(.1);
+        //     x.push_back(.1);
+        //     x.push_back(.1);
+        //     x.push_back(.1);
+        // }
+
+        // // Fill the rest with 0s
+        // for (int i = 0; i < num_inputs; i++) {
+        //     x.push_back(0);
+        //     x.push_back(0);
+        // }
 
         // for (int i = 1; i < initial_guess.waypoints.size(); i++) {
         //     int index = (i - 1) * 2;

@@ -41,7 +41,7 @@ namespace cev_planner::cost_map {
             kernel = gen_kernel(search_radius, sigma);
         }
 
-        std::shared_ptr<CostMap> generate_cost_map(Grid grid) override;
+        std::shared_ptr<CostMap> generate_cost_map(Grid grid, Grid* scan = nullptr) override;
     };
 
 }  // namespace cev_planner::cost_map

@@ -41,8 +41,23 @@ namespace cev_planner::local_planner {
             opt = nlopt::opt(nlopt::LN_SBPLX, num_inputs * 2);
             // opt = nlopt::opt(nlopt::LN_BOBYQA, num_inputs * 2);
             opt.set_min_objective(objective_function, this);
+            opt.set_ftol_rel(1e-8);
+            opt.set_ftol_abs(1e-8);
             opt.set_xtol_rel(1e-8);
+            opt.set_xtol_abs(1e-8);
+
+            std::vector<double> initial_step = {.1, 0.05, .1, 0.05};
+
+            // Fill in the rest of the initial step with 0s
+            for (int i = 0; i < num_inputs - 2; i++) {
+                initial_step.push_back(0);
+                initial_step.push_back(0);
+            }
+
+            opt.set_default_initial_step(initial_step);
         }
+
+        std::vector<double> initial_guess();
 
         Trajectory calculate_trajectory(Trajectory initial_guess);
     };

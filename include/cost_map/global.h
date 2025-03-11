@@ -11,26 +11,26 @@
 
 namespace cev_planner::cost_map {
 
-    class NearestCostMap : public CostMap {
+    class GlobalCostMap : public CostMap {
     private:
         Grid cost_map;
 
     public:
-        NearestCostMap(Grid cost_map): cost_map(cost_map) {}
+        GlobalCostMap(Grid cost_map): cost_map(cost_map) {}
         double cost(State state) override;
     };
 
-    class NearestGenerator : public CostMapGenerator {
+    /**
+     * @brief Generates a CostMap from a grid by dilating obstacles outwards
+     *
+     */
+    class GlobalCostMapGenerator : public CostMapGenerator {
     private:
         int search_radius;
-        Eigen::VectorXf kernel;
-
-        Eigen::VectorXf gen_kernel(int search_radius, float power);
 
     public:
-        NearestGenerator(int search_radius, float power): CostMapGenerator() {
-            this->search_radius = search_radius;
-            kernel = gen_kernel(search_radius, power);
+        GlobalCostMapGenerator(int dilation): CostMapGenerator() {
+            search_radius = dilation;
         }
 
         std::shared_ptr<CostMap> generate_cost_map(Grid grid, Grid* scan = nullptr) override;
