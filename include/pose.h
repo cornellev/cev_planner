@@ -34,6 +34,7 @@ namespace cev_planner {
      *
      */
     struct Input {
+        Input(double tau = 0, double vel = 0): tau(tau), vel(vel) {}
         // Steering angle in radians
         double tau;
 
