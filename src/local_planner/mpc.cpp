@@ -137,7 +137,7 @@ namespace cev_planner::local_planner {
         // }
 
         std::vector<State> path = this->decompose(*this->temp_start, x, this->dt);
-        return 50 * path_obs_cost(path) + 10 * path_waypoints_cost(path);
+        return 100.0 * path_obs_cost(path) + path_waypoints_cost(path) / 100.0;
     }
 
     double MPC::objective_function(const std::vector<double>& x, std::vector<double>& grad,
