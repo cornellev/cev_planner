@@ -2,11 +2,11 @@
 
 namespace cev_planner::local_planner {
 
-    double MPC::path_obs_cost(std::vector<State>& path) {
+    double BaseMPC::path_obs_cost(const std::vector<State>& path) const {
         double cost = 0;
 
-        for (int i = 0; i < path.size(); i++) {
-            cost += this->costmap->cost(path[i]);
+        for (const auto& state: path) {
+            cost += this->costfinder->cost(state);
         }
 
         return cost;
@@ -28,7 +28,7 @@ namespace cev_planner::local_planner {
     float second_half_weight_first = .2 * total_second_half_weight;
     float second_half_weight_second = .8 * total_second_half_weight;
 
-    double MPC::path_waypoints_cost(std::vector<State>& path) {
+    double BaseMPC::path_waypoints_cost(const std::vector<State>& path) const {
         int waypoints_size = waypoints.waypoints.size();
         int path_size = path.size();
 
@@ -107,24 +107,37 @@ namespace cev_planner::local_planner {
         return cost;
     }
 
-    std::vector<State> MPC::decompose(State start_state, std::vector<double> u, double dt) {
+    double BaseMPC::objective_function(const std::vector<double>& x, std::vector<double>& grad,
+        void* data) {
+        auto* mpc = static_cast<BaseMPC*>(data);
+
+        return mpc->costs(x);
+    }
+
+
+    void BaseMPC::optimize_iter(nlopt::opt& opt, std::vector<double>& x) {
+        double minf;
+        opt.optimize(x, minf);
+    }
+
+    std::vector<State> CartesianMPC::decompose(State start_state, std::vector<double> u, double dt) {
         std::vector<State> path;
         State state = start_state;
         path.push_back(state);
         for (int i = 0; i < u.size(); i += 2) {
             Input input = {u[i], u[i + 1]};
-            state = state.update(input, this->dt, dimensions, constraints);
+            state = state.update(input, dt, dimensions, constraints);
             path.push_back(state);
         }
         return path;
     }
 
-    // double MPC::costs(const std::vector<double>& x) {
+    // double CartesianMPC::costs(const std::vector<double>& x) {
     //     std::vector<State> path = this->decompose(*this->temp_start, x);
     //     return 50 * path_obs_cost(path) + path_waypoints_cost(path);
     // }
 
-    double MPC::costs(const std::vector<double>& x) {
+    double CartesianMPC::costs(const std::vector<double>& x) {
         // Show elements from second element of x onward
         // std::vector<double> x_ = std::vector<double>(x.begin() + 1, x.end());
 
@@ -140,19 +153,7 @@ namespace cev_planner::local_planner {
         return 8 * path_obs_cost(path) + 5 * path_waypoints_cost(path);
     }
 
-    double MPC::objective_function(const std::vector<double>& x, std::vector<double>& grad,
-        void* data) {
-        MPC* mpc = (MPC*)data;
-
-        return mpc->costs(x);
-    }
-
-    void MPC::optimize_iter(nlopt::opt& opt, std::vector<double>& x) {
-        double minf;
-        opt.optimize(x, minf);
-    }
-
-    // Trajectory MPC::calculate_trajectory() {
+    // Trajectory CartesianMPC::calculate_trajectory() {
     //     std::vector<double> path = {};
     //     std::vector<double> x = {};
 
@@ -206,7 +207,7 @@ namespace cev_planner::local_planner {
     //     return traj;
     // }
 
-    // Trajectory MPC::calculate_trajectory() {
+    // Trajectory CartesianMPC::calculate_trajectory() {
     //     std::vector<std::vector<double>> paths;
 
     //     float start_angle = -.2;
@@ -250,20 +251,45 @@ namespace cev_planner::local_planner {
     //     return trajectory;
     // }
 
-    Trajectory MPC::calculate_trajectory(Trajectory initial_guess) {
+    Trajectory BaseMPC::calculate_trajectory(Trajectory initial_guess) {
+        auto start_time = std::chrono::high_resolution_clock::now();
+        std::cout << "Calculating trajectory..." << std::endl;
+        (void)initial_guess;
         std::vector<double> x;
 
-        // x.push_back(dt);
-
-        temp_start = std::make_unique<State>(start);
-
-        // Fill initial guess
-
-        // Fill with 0s
-        for (int i = 0; i < num_inputs; i++) {
+        // Initiate guess
+        x.reserve(num_inputs * 2);
+        for (int i = 0; i < num_inputs; ++i) {
             x.push_back(0);
             x.push_back(0);
         }
+
+        // Set constraints
+        std::vector<double> lb;
+        std::vector<double> ub;
+        lb.reserve(num_inputs * 2);
+        ub.reserve(num_inputs * 2);
+        for (int i = 0; i < num_inputs; ++i) {
+            lb.push_back(constraints.dtau[0]);
+            lb.push_back(constraints.accel[0]);
+            ub.push_back(constraints.dtau[1]);
+            ub.push_back(constraints.accel[1]);
+        }
+        opt.set_lower_bounds(lb);
+        opt.set_upper_bounds(ub);
+
+        // Optimize
+        optimize_iter(opt, x);
+
+        // Decompose and output
+        Trajectory trajectory;
+        trajectory.waypoints = decompose(start, x, this->dt);
+        trajectory.cost = costs(x);
+        trajectory.timestep = this->dt;
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+        std::cout << "Time: " << duration.count() << std::endl;
+        return trajectory;
 
         // for (int i = 1; i < initial_guess.waypoints.size(); i++) {
         //     int index = (i - 1) * 2;
@@ -277,21 +303,6 @@ namespace cev_planner::local_planner {
 
         // std::cout << "Starting optimization with x size:" << std::endl;
 
-        // Define constraints
-        std::vector<double> lb = {};
-        std::vector<double> ub = {};
-
-        for (int i = 0; i < num_inputs; i++) {
-            // lb.push_back(constraints.tau[0]);
-            // lb.push_back(constraints.vel[0]);
-            // ub.push_back(constraints.tau[1]);
-            // ub.push_back(constraints.vel[1]);
-            lb.push_back(constraints.dtau[0]);
-            lb.push_back(constraints.accel[0]);
-            ub.push_back(constraints.dtau[1]);
-            ub.push_back(constraints.accel[1]);
-        }
-
         // std::cout << x.size() << std::endl;
 
         // std::cout << "Inputs: " << std::endl;
@@ -302,23 +313,101 @@ namespace cev_planner::local_planner {
 
         // Optimize
         // nlopt::srand(0);
-        optimize_iter(opt, x);
         // std::cout << "Optimization complete" << std::endl;
 
         // std::vector<double> x_ = std::vector<double>(x.begin() + 1, x.end());
 
-        // Decompose the optimized trajectory
-        std::vector<State> path = decompose(start, x, this->dt);
-
-        Trajectory trajectory;
-        trajectory.waypoints = path;
-        trajectory.cost = path_waypoints_cost(path);
-        // trajectory.timestep = x[0];
-        trajectory.timestep = this->dt;
-
         // std::cout << "Cost: " << trajectory.cost << std::endl;
 
         return trajectory;
+    }
+
+    // Lane MPC implementation
+    void LaneFollowingMPC::set_reference_polynomial(const Trajectory& reference,
+        int start_index, int n) {
+        reference_polynomial.fit(reference.waypoints, start_index, n);
+    }
+
+    double LaneFollowingMPC::interpolated_costmap_penalty(const State& current,
+        const State* next, double resolution) const {
+        const Pose& start_pose = current.pose;
+        const Pose& end_pose = next ? next->pose : current.pose;
+
+        const double dx = end_pose.x - start_pose.x;
+        const double dy = end_pose.y - start_pose.y;
+        const double length = std::hypot(dx, dy);
+        const bool has_segment = next != nullptr && length > 1e-6;
+
+        const int steps = has_segment
+            ? std::max(1, static_cast<int>(std::ceil(length / resolution)))
+            : 0;
+
+        const auto sample_at = [&](double t) -> double {
+            State probe = current;
+            probe.pose.x = start_pose.x + t * dx;
+            probe.pose.y = start_pose.y + t * dy;
+            const double c = this->costfinder->cost(probe);
+            if (c == 0) return 0;
+            // if (c == 0) return 10;
+            return c * (1.0f + 0.48f * (1.0f - c)); // c^(2/3)
+        };
+
+        if (steps == 0) {
+            return sample_at(0.0);
+        }
+
+        double penalty = 0.0;
+        for (int step = 0; step <= steps; ++step) {
+            const double t = static_cast<double>(step) / static_cast<double>(steps);
+            penalty += sample_at(t);
+        }
+        return penalty;
+    }
+
+    double LaneFollowingMPC::costs(const std::vector<double>& x) {
+        static constexpr double w_cte = 0.08;
+        static constexpr double w_heading = 0.01;
+        static constexpr double w_speed = 0.05;
+        // static constexpr double w_steer = 0.5;
+        // static constexpr double w_accel = 0.5;
+        static constexpr double w_costmap = 10.0;
+
+        // const std::vector<State> path = decompose(start, x, this->dt);
+        // if (path.empty()) {
+        //     return 1e9;
+        // }
+
+        double cost = 0.0;
+        // double path_length = 0.0;
+        // static constexpr double kInterpResolution = 0.2;
+
+        // for (std::size_t i = 0; i < path.size(); ++i) {
+        //     const State& state = path[i];
+        //     cost += w_cte * std::abs(state.cte * state.cte);
+        //     cost += w_heading * std::abs(state.theta_e);
+        //     cost += w_speed * std::abs(state.vel - target_vel); // W speed ❤️‍🩹
+
+        //     const State* next_state = (i + 1 < path.size()) ? &path[i + 1] : nullptr;
+        //     // if (next_state)
+        //     //     path_length += next_state->pose.distance_to(state.pose);
+        //     cost += w_costmap * interpolated_costmap_penalty(state, next_state, kInterpResolution);
+        // }
+        // cost += 0.01 / path_length;
+        return cost;
+    }
+
+    std::vector<State> LaneFollowingMPC::decompose(State start_state, std::vector<double> u, double dt) {
+        std::vector<State> path;
+        State state = start_state;
+        path.push_back(state);
+        for (int i = 0; i < u.size(); i += 2) {
+            Input input = {u[i], u[i + 1]};
+            state = state.update(input, dt, 
+                reference_polynomial.at(state.pose.x), std::atan(reference_polynomial.deriv(state.pose.x)),
+                dimensions, constraints);
+            path.push_back(state);
+        }
+        return path;
     }
 
 }  // namespace cev_planner::local_planner

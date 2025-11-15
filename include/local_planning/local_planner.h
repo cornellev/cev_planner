@@ -7,6 +7,7 @@
 #include "thread"
 #include "cost_map/cost_map.h"
 #include "vis/vis.h"
+#include "cost_finder/cost_finder.h"
 
 #include <iostream>
 #include <chrono>
@@ -30,9 +31,8 @@ namespace cev_planner::local_planner {
         State target;
         Trajectory waypoints;
 
-        std::shared_ptr<CostMap> costmap;
-
-        std::thread costmap_thread;
+        std::shared_ptr<cev_planner::cost_finder::CostFinder> costfinder;
+        std::thread costfinder_thread;
 
     public:
         /**
@@ -40,7 +40,6 @@ namespace cev_planner::local_planner {
          *
          * @param dimensions Dimensions of the robot
          * @param constraints Constraints on the robot's motion
-         * @param cost_map_generator Cost map generator
          */
         LocalPlanner(Dimensions dimensions, Constraints constraints) {
             this->dimensions = dimensions;
@@ -57,12 +56,12 @@ namespace cev_planner::local_planner {
          * @return `Trajectory` from the start pose to the target pose
          */
         Trajectory plan_path(Grid grid, State start, State target, Trajectory waypoints,
-            Trajectory initial_guess, std::shared_ptr<CostMap> cost_map) {
+            Trajectory initial_guess, std::shared_ptr<cev_planner::cost_finder::CostFinder> costfinder) {
             this->grid = grid;
             this->start = start;
             this->target = target;
             this->waypoints = waypoints;
-            this->costmap = cost_map;
+            this->costfinder = costfinder;
 
             auto start_time = std::chrono::high_resolution_clock::now();
 
