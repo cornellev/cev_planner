@@ -31,11 +31,9 @@ namespace cev_planner::local_planner {
         State target;
         Trajectory waypoints;
 
-        //std::shared_ptr<CostMap> costmap;
-        std::shared_ptr<cev_planner::cost_finder::CostFinder> costfinder;
-        std::thread costfinder_thread;
+        std::shared_ptr<CostMap> costmap;
 
-        // std::thread costmap_thread;
+        std::thread costmap_thread;
 
     public:
         /**
@@ -43,6 +41,7 @@ namespace cev_planner::local_planner {
          *
          * @param dimensions Dimensions of the robot
          * @param constraints Constraints on the robot's motion
+         * @param cost_map_generator Cost map generator
          */
         LocalPlanner(Dimensions dimensions, Constraints constraints) {
             this->dimensions = dimensions;
@@ -59,12 +58,12 @@ namespace cev_planner::local_planner {
          * @return `Trajectory` from the start pose to the target pose
          */
         Trajectory plan_path(Grid grid, State start, State target, Trajectory waypoints,
-            Trajectory initial_guess, std::shared_ptr<cev_planner::cost_finder::CostFinder> costfinder) {
+            Trajectory initial_guess, std::shared_ptr<CostMap> cost_map) {
             this->grid = grid;
             this->start = start;
             this->target = target;
             this->waypoints = waypoints;
-            this->costfinder = costfinder;
+            this->costmap = cost_map;
 
             auto start_time = std::chrono::high_resolution_clock::now();
 

@@ -2,22 +2,13 @@
 
 namespace cev_planner::local_planner {
 
-    // change here
-    // double MPC::path_obs_cost(std::vector<State>& path) {
-    //     double cost = 0;
-
-    //     for (int i = 0; i < path.size(); i++) {
-    //         cost += this->costmap->cost(path[i]);
-    //     }
-
-    //     return cost;
-    // }
-
     double MPC::path_obs_cost(std::vector<State>& path) {
         double cost = 0;
-        for (const auto& state : path) {
-            cost += this->costfinder->cost(state);
+
+        for (int i = 0; i < path.size(); i++) {
+            cost += this->costmap->cost(path[i]);
         }
+
         return cost;
     }
 
@@ -151,10 +142,9 @@ namespace cev_planner::local_planner {
 
     double MPC::objective_function(const std::vector<double>& x, std::vector<double>& grad,
         void* data) {
-        // MPC* mpc = (MPC*)data;
+        MPC* mpc = (MPC*)data;
 
-        // return mpc->costs(x);
-        return static_cast<MPC*>(data)->costs(x);
+        return mpc->costs(x);
     }
 
     void MPC::optimize_iter(nlopt::opt& opt, std::vector<double>& x) {

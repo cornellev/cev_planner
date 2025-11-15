@@ -1,9 +1,9 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-#include "cost_map/dist_map.h"
+#include "cost_finder/cost_finder.h"
 
-namespace cev_planner::cost_map {
+namespace cev_planner::cost_finder {
 
     // basic point structure
     struct Point {
@@ -64,35 +64,54 @@ namespace cev_planner::cost_map {
         }
 
         int find_set(int v) {
-            //cout << "Hello600\n";
-            if (v == parent[v]) {
-                //cout << "Hello600b\n";
+            // defensive: ensure parent vector has been initialized and v is in range
+            if (v < 0 || v >= (int)parent.size()) {
                 return v;
             }
-            //cout << "Hello601\n";
+
+            if (v == parent[v]) {
+                return v;
+            }
+
+            // if parent[v] is out of range for some reason, reset it
+            if (parent[v] < 0 || parent[v] >= (int)parent.size()) {
+                parent[v] = v;
+                return v;
+            }
+
             return parent[v] = find_set(parent[v]);
         }
         
         void union_sets(int a, int b) {
             a = find_set(a);
             b = find_set(b);
+
+            // defensive: ensure indices are valid
+            if (a < 0 || a >= (int)parent.size() || b < 0 || b >= (int)parent.size()) {
+                return;
+            }
+
             if (a != b) {
                 if (rankOf[a] < rankOf[b])
                     swap(a, b);
                 parent[b] = a;
 
-                componentNum[a] += componentNum[b];
-                componentNum.erase(b);
+                if (componentNum.count(a) && componentNum.count(b)) {
+                    componentNum[a] += componentNum[b];
+                    componentNum.erase(b);
+                }
 
-                auto &boundaryA = componentBoundaries[a];
-                auto &boundaryB = componentBoundaries[b];
+                if (componentBoundaries.count(a) && componentBoundaries.count(b)) {
+                    auto &boundaryA = componentBoundaries[a];
+                    auto &boundaryB = componentBoundaries[b];
 
-                boundaryA.x_min = min(boundaryA.x_min, boundaryB.x_min);
-                boundaryA.x_max = max(boundaryA.x_max, boundaryB.x_max);
-                boundaryA.y_min = min(boundaryA.y_min, boundaryB.y_min);
-                boundaryA.y_max = max(boundaryA.y_max, boundaryB.y_max);
+                    boundaryA.x_min = min(boundaryA.x_min, boundaryB.x_min);
+                    boundaryA.x_max = max(boundaryA.x_max, boundaryB.x_max);
+                    boundaryA.y_min = min(boundaryA.y_min, boundaryB.y_min);
+                    boundaryA.y_max = max(boundaryA.y_max, boundaryB.y_max);
 
-                componentBoundaries.erase(b);
+                    componentBoundaries.erase(b);
+                }
 
                 if (rankOf[a] == rankOf[b])
                     rankOf[a]++;
@@ -243,18 +262,31 @@ namespace cev_planner::cost_map {
 
             vector<bool> visited(n);
 
-            // dfs loop
-            for (int i = 0; i < n; ++i) {
-                if (visited[i]) {
-                    continue;
+                // iterative DFS using a stack to avoid deep recursion
+                for (int i = 0; i < n; ++i) {
+                    if (visited[i]) continue;
+
+                    std::stack<int> st;
+                    st.push(i);
+                    visited[i] = true;
+
+                    while (!st.empty()) {
+                        int cur = st.top();
+                        st.pop();
+
+                        // query neighbors within radius
+                        vector<Point> neighbors = queryCircle(allPoints[cur], radius);
+                        for (const Point &pt : neighbors) {
+                            int nIndex = pointIndex[pt];
+                            if (nIndex < 0 || nIndex >= n) continue;
+                            if (!visited[nIndex]) {
+                                dsu.union_sets(cur, nIndex);
+                                visited[nIndex] = true;
+                                st.push(nIndex);
+                            }
+                        }
+                    }
                 }
-
-                // get neighbors using query circle
-                Point &currentPoint = allPoints[i];
-
-                // do dfs, updated visited, and do the dsu for every connected point
-                dfs(i, visited, radius);
-            }
 
             // debug
             for (int i = 0; i < n; i++) {
@@ -405,97 +437,25 @@ namespace cev_planner::cost_map {
 
     };
 
-    double DistCostMap::cost(State state) {
-        // Convert the state to grid coordinates
-        // std::cout << state.pose.x << " " << state.pose.y << std::endl;
-        int x = state.pose.x;
-        int y = state.pose.y;
-        // int x = (state.pose.x - cost_map.origin.x) / cost_map.resolution;
-        // int y = (state.pose.y - cost_map.origin.y) / cost_map.resolution;
-        // std::cout << x << " " << y << std::endl;
-
-        // Check if the state is within the bounds of the cost map
-        if (x < 0 || x >= cost_map.data.rows() || y < 0 || y >= cost_map.data.cols()) {
-            return std::numeric_limits<double>::max();
-        }
-
-        return cost_map.data(x, y);
+    CostFinder::CostFinder(double radius, int k) {
+        this->radius = radius;
+        this->k = k;
+        this->quadtree = new Quadtree(AABB(0, 0, 1000, 1000));
+    }
+        
+    void CostFinder::addPoint(const State& state) {
+        quadtree->insert(Point(state.pose.x, state.pose.y));
     }
 
-    // let's create something that exports the map and itself out at some certain time
+    double CostFinder::cost(const State& state) {
+        auto distances = quadtree->queryHeuristic(Point(state.pose.x, state.pose.y), radius, k);
+        double total_cost = 0;
 
-    // make a function that returns a list of all previous points and their respective distances
-    // at the start, add those points in there and just look at those only for saving?
-    // each point also needs like to have a minimum amount of knowledge of the stuff around it
-    // how?  check if we've previous looked at points +- 10 in both directions
-
-    std::shared_ptr<CostMap> DistGenerator::generate_cost_map(Grid grid) {
-        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-        Grid cost_map;
-        //cout << "Hello1\n";
-        cost_map.data.resize(grid.data.rows(), grid.data.cols());
-        //cout << "Hello2\n";
-        Quadtree quadtree(AABB(0, 0, grid.data.rows(), grid.data.cols()));
-        //cout << "Hello3\n";
-        for (int i = 0; i < grid.data.rows(); i++) {
-            for (int j = 0; j < grid.data.cols(); j++) {
-                //cout << "Hello3a " << grid.data(i, j) << "\n";
-                if (grid.data(i, j) > 0.7f) {
-                    cout << "Accepted " << i << " " << j << "\n";
-                    //if (i >= 80) cout << i << " " << j << "\n";
-                    //cout << "Hello3b " << i * grid.resolution + grid.origin.x << " " << j * grid.resolution + grid.origin.y << "\n";
-                    double x = i * grid.resolution + grid.origin.x;
-                    double y = j * grid.resolution + grid.origin.y;
-                    quadtree.insert(Point(x, y));
-                    //quadtree.insert(Point(i, j));
-                } else {
-                    cout << "Rejected " << i << " " << j << "\n";
-                }
-            }
-            //cout << "Hello4\n";
+        for (const auto& [component, dist] : distances) {
+            total_cost += std::min(1.0 / (dist * dist), 10.0);
         }
-        quadtree.findConnectedComponents(radius);
-        //cout << "Hello5\n";
-        for (int i = 0; i < grid.data.rows(); i++) {
-            for (int j = 0; j < grid.data.cols(); j++) {
-                cout << "Calculating at " << i << " " << j << "\n";
-                double x = grid.origin.x + i * grid.resolution;
-                double y = grid.origin.y + j * grid.resolution;
-                State {x, y};
-                //cout << "Hello111\n";
-                unordered_map<int, double> distances = quadtree.queryHeuristic(Point(x, y), radius, k);
-                //unordered_map<int, double> distances = quadtree.queryHeuristic(Point(i, j), radius, k);
-                //cout << "Hello6\n";
-                double total_distance = 0;
-                for (auto& [i, dist] : distances) {
-                    // cout << "Dist: " << dist << "\n";
-                    total_distance += min(1.0 / (dist * dist), 10.0);
-                }
-                //cout << "Total Distance: " << total_distance << "\n"; 
-                //cout << "Hello7\n";
-                cost_map.data(i, j) = total_distance;
-                //cout << "Cost " << i << " " << j << " " << total_distance << "\n"; 
-            }
-        }
-        // notes 0 is white, 125 is green, 150 is red, 200 is orange, 400 is red, 500 is yellow, 600 is black, 700 is orange
-        //cout << "Hello8\n";
 
-        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-        cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << endl;
-    
-        return std::make_shared<DistCostMap>(cost_map);
+        return total_cost;
     }
 
-} // namespace cev_planner::cost_map
-
-// // not really needed but unnecessarily used
-// namespace std {
-//     template <>
-//     struct hash<cev_planner::cost_map::Point> {
-//         size_t operator()(const cev_planner::cost_map::Point &p) const {
-//             size_t h1 = hash<double>{}(p.x);
-//             size_t h2 = hash<double>{}(p.y);
-//             return h1 ^ (h2 << 1);
-//         }
-//     };
-// }
+} // namespace cev_planner::cost_finder
