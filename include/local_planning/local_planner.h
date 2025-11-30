@@ -7,7 +7,6 @@
 #include "thread"
 #include "cost_map/cost_map.h"
 #include "vis/vis.h"
-#include "cost_finder/cost_finder.h"
 
 #include <iostream>
 #include <chrono>
@@ -31,8 +30,7 @@ namespace cev_planner::local_planner {
         State target;
         Trajectory waypoints;
 
-        std::shared_ptr<cev_planner::cost_finder::CostFinder> costfinder;
-        std::thread costfinder_thread;
+        std::shared_ptr<cev_planner::cost_map::CostMap> costmap;
 
     public:
         /**
@@ -56,12 +54,12 @@ namespace cev_planner::local_planner {
          * @return `Trajectory` from the start pose to the target pose
          */
         Trajectory plan_path(Grid grid, State start, State target, Trajectory waypoints,
-            Trajectory initial_guess, std::shared_ptr<cev_planner::cost_finder::CostFinder> costfinder) {
+            Trajectory initial_guess, std::shared_ptr<cev_planner::cost_map::CostMap> cost_map) {
             this->grid = grid;
             this->start = start;
             this->target = target;
             this->waypoints = waypoints;
-            this->costfinder = costfinder;
+            this->costmap = cost_map;
 
             auto start_time = std::chrono::high_resolution_clock::now();
 

@@ -5,8 +5,11 @@ namespace cev_planner::local_planner {
     double BaseMPC::path_obs_cost(const std::vector<State>& path) const {
         double cost = 0;
 
+        if (!this->costmap) {
+            return cost;
+        }
         for (const auto& state: path) {
-            cost += this->costfinder->cost(state);
+            cost += this->costmap->cost(state);
         }
 
         return cost;
@@ -328,71 +331,98 @@ namespace cev_planner::local_planner {
         reference_polynomial.fit(reference.waypoints, start_index, n);
     }
 
-    double LaneFollowingMPC::interpolated_costmap_penalty(const State& current,
-        const State* next, double resolution) const {
+    double LaneFollowingMPC::interpolated_costmap_penalty(const State& current, const State* next, 
+        double resolution) const
+    {
         const Pose& start_pose = current.pose;
-        const Pose& end_pose = next ? next->pose : current.pose;
+        const Pose& end_pose   = next ? next->pose : current.pose;
 
-        const double dx = end_pose.x - start_pose.x;
-        const double dy = end_pose.y - start_pose.y;
+        const double dx     = end_pose.x - start_pose.x;
+        const double dy     = end_pose.y - start_pose.y;
         const double length = std::hypot(dx, dy);
-        const bool has_segment = next != nullptr && length > 1e-6;
 
-        const int steps = has_segment
-            ? std::max(1, static_cast<int>(std::ceil(length / resolution)))
-            : 0;
+        // no segment -> no path-integrated obstacle cost
+        if (!next || length < 1e-6) {
+            return 0.0;
+        }
 
-        const auto sample_at = [&](double t) -> double {
+        const int steps = std::max(1, static_cast<int>(std::ceil(length / resolution)));
+        const double inv_steps = 1.0 / static_cast<double>(steps);
+
+        auto sample_at = [&](double t) -> double {
             State probe = current;
             probe.pose.x = start_pose.x + t * dx;
             probe.pose.y = start_pose.y + t * dy;
-            const double c = this->costfinder->cost(probe);
-            if (c == 0) return 0;
-            // if (c == 0) return 10;
-            return c * (1.0f + 0.48f * (1.0f - c)); // c^(2/3)
+
+            double c = this->costmap->cost(probe);
+
+            if (c >= 0.4) return 10;
+            if (c > 0.0) {
+                return c * (1.0 + 0.48 * (1.0 - c));
+            }
+            return 0.0;
         };
 
-        if (steps == 0) {
-            return sample_at(0.0);
+        double accum = 0.0;
+        for (int step = 0; step <= steps; ++step) {
+            const double t = static_cast<double>(step) * inv_steps;
+            accum += sample_at(t);
         }
 
-        double penalty = 0.0;
-        for (int step = 0; step <= steps; ++step) {
-            const double t = static_cast<double>(step) / static_cast<double>(steps);
-            penalty += sample_at(t);
-        }
-        return penalty;
+        // Approximate integral: average * length
+        const double avg_cost = accum * inv_steps;
+        return avg_cost * length;
     }
 
     double LaneFollowingMPC::costs(const std::vector<double>& x) {
-        static constexpr double w_cte = 0.08;
-        static constexpr double w_heading = 0.01;
-        static constexpr double w_speed = 0.05;
+        static constexpr double w_cte = 0.03;
+        static constexpr double w_heading = 0.1;
+        static constexpr double w_speed = 0.5;
         // static constexpr double w_steer = 0.5;
         // static constexpr double w_accel = 0.5;
         static constexpr double w_costmap = 10.0;
 
-        // const std::vector<State> path = decompose(start, x, this->dt);
-        // if (path.empty()) {
-        //     return 1e9;
-        // }
-
         double cost = 0.0;
         // double path_length = 0.0;
-        // static constexpr double kInterpResolution = 0.2;
+        static constexpr double kInterpResolution = 0.05;
 
-        // for (std::size_t i = 0; i < path.size(); ++i) {
-        //     const State& state = path[i];
-        //     cost += w_cte * std::abs(state.cte * state.cte);
-        //     cost += w_heading * std::abs(state.theta_e);
-        //     cost += w_speed * std::abs(state.vel - target_vel); // W speed ❤️‍🩹
+        State state = start;
+        auto add_state_cost = [&](double& C, const State& s, const State* next_state) {
 
-        //     const State* next_state = (i + 1 < path.size()) ? &path[i + 1] : nullptr;
-        //     // if (next_state)
-        //     //     path_length += next_state->pose.distance_to(state.pose);
-        //     cost += w_costmap * interpolated_costmap_penalty(state, next_state, kInterpResolution);
-        // }
-        // cost += 0.01 / path_length;
+            C += w_cte * s.cte * s.cte;
+            C += w_heading * s.theta_e * s.theta_e;
+            const double dv = s.vel - target_vel;
+            C += w_speed * dv * dv;  // W speed ❤️‍🩹
+
+            C += w_costmap * interpolated_costmap_penalty(
+                    s, next_state, kInterpResolution);
+        };
+
+        for (int i = 0; i + 1 < x.size(); i += 2) {
+            Input input = {x[i], x[i + 1]};
+            State next_state = state.update(input, dt,
+                reference_polynomial,
+                dimensions, constraints);
+            
+            add_state_cost(cost, state, &next_state);
+            state = next_state;
+        }
+        add_state_cost(cost, state, nullptr);
+
+        // Extend last state and check that we not just easing up to an obstacle
+        {
+            State lookahead = state;
+
+            const double yaw = state.pose.theta;
+            
+            lookahead.pose.theta = yaw;
+            lookahead.pose.x += extension_dist * std::cos(yaw);
+            lookahead.pose.y += extension_dist * std::sin(yaw);
+
+            cost += 0.5 * w_costmap *
+                    interpolated_costmap_penalty(state, &lookahead, kInterpResolution);
+        }
+
         return cost;
     }
 
@@ -402,9 +432,8 @@ namespace cev_planner::local_planner {
         path.push_back(state);
         for (int i = 0; i < u.size(); i += 2) {
             Input input = {u[i], u[i + 1]};
-            state = state.update(input, dt, 
-                reference_polynomial.at(state.pose.x), std::atan(reference_polynomial.deriv(state.pose.x)),
-                dimensions, constraints);
+            state = state.update(
+                input, dt, reference_polynomial, dimensions, constraints);
             path.push_back(state);
         }
         return path;

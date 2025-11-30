@@ -13,11 +13,11 @@ namespace cev_planner::local_planner {
      */
     class BaseMPC : public LocalPlanner {
     protected:
-        int num_inputs = 10;
-        float dt = .4;
-        int horizon_extension_iters = 1;  // 5 horizon extension steps
-        int keep_per_extension = 10;      // keep 3/num_inputs of the best path
-        int additionally_extend = 0;      // extend the final path by 5 more steps
+        int num_inputs;
+        float dt;
+        // int horizon_extension_iters = 1;  // 5 horizon extension steps
+        // int keep_per_extension = 10;      // keep 3/num_inputs of the best path
+        // int additionally_extend = 0;      // extend the final path by 5 more steps
         nlopt::opt opt;
 
         double path_obs_cost(const std::vector<State>& path) const;
@@ -36,7 +36,8 @@ namespace cev_planner::local_planner {
          * @param constraints Constraints on the robot's motion
          * @param cost_map_generator Cost map generator
          */
-        BaseMPC(Dimensions dimensions, Constraints constraints): LocalPlanner(dimensions, constraints) {
+        BaseMPC(Dimensions dimensions, Constraints constraints, int num_inputs_ = 10, float dt_ = .4) 
+            : LocalPlanner(dimensions, constraints), num_inputs(num_inputs_), dt(dt_) {
             // opt = nlopt::opt(nlopt::LN_SBPLX, num_inputs * 2);
             opt = nlopt::opt(nlopt::LN_BOBYQA, num_inputs * 2);
             opt.set_min_objective(objective_function, this);
@@ -52,7 +53,7 @@ namespace cev_planner::local_planner {
     class CartesianMPC : public BaseMPC {
     public:
         CartesianMPC(Dimensions dimensions, Constraints constraints) : 
-            BaseMPC(dimensions, constraints) {};
+            BaseMPC(dimensions, constraints, 10, .4) {};
     protected:
         double costs(const std::vector<double>& x) override;
         std::vector<State> decompose(State start_state, std::vector<double> u, double dt) override;
@@ -67,9 +68,12 @@ namespace cev_planner::local_planner {
     class LaneFollowingMPC : public BaseMPC {
     public:
         double target_vel = 0;
+        double extension_dist = 0; // extra heuristic
         LaneFollowingMPC(Dimensions dimensions, Constraints constraints) :
-            BaseMPC(dimensions, constraints) { 
+            BaseMPC(dimensions, constraints, 4, .5) { 
                 target_vel = constraints.vel[1] * 2.0 / 3;
+                // extension_dist = 2 * dimensions.length * constraints.vel[1] * dt;
+                extension_dist = 1.0;
             };
 
         void set_reference_polynomial(const Trajectory& reference, int start_index,
