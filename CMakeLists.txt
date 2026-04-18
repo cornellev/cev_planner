@@ -25,7 +25,6 @@ add_library(cev_planner STATIC
     src/cost_map/nearest.cpp
     src/cost_map/nothing.cpp
     src/cost_map/distance.cpp
-    src/cost_finder/cost_finder.cpp
 )
 
 target_link_libraries(cev_planner Eigen3::Eigen ${NLOPT_LIBRARIES} ${OpenCV_LIBS})
